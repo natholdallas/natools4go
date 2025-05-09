@@ -1,7 +1,7 @@
 # natools4go
 
 ```bash
-go get github.com/natholdallas/natools4go
+go get -u github.com/natholdallas/natools4go
 ```
 
 | dir     | description                |
