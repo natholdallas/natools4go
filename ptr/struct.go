@@ -1,8 +1,8 @@
-package printer
+package ptr
 
 import "fmt"
 
-func PrintStruct(v ...any) {
+func Struct(v ...any) {
 	for _, i := range v {
 		fmt.Printf("%#v\n", i)
 	}

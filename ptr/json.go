@@ -1,4 +1,4 @@
-package printer
+package ptr
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"github.com/natholdallas/natools4go/jsons"
 )
 
-func PrintJSON(v ...any) {
+func JSON(v ...any) {
 	for _, i := range v {
-		d, _ := jsons.Stringify(i, true)
+		d, _ := jsons.String(i, true)
 		fmt.Println(d)
 	}
 }

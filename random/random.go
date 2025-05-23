@@ -28,7 +28,7 @@ func Avatar() string {
 
 // get a random cover preset url, size[400x300], gen by [randomdata.Number] and website https://picsum.photos
 func Cover() string {
-	return "https://picsum.photos/id/" + strconv.Itoa(randomdata.Number(40, 200)) + "/400/300.webp"
+	return "https://picsum.photos/id/" + strconv.Itoa(randomdata.Number(100)) + "/400/300.webp"
 }
 
 // random split numbers, the number could be zero

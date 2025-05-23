@@ -1,4 +1,4 @@
-package ncrypto
+package cryptos
 
 import (
 	"encoding/hex"

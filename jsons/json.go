@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 )
 
-func UnMarshal[T any](bytes []byte) (T, error) {
+func Unmarshal[T any](bytes []byte) (T, error) {
 	var result T
 	err := json.Unmarshal(bytes, &result)
 	return result, err
@@ -19,7 +19,7 @@ func Marshal(v any, pretty ...bool) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func Stringify(data any, pretty ...bool) (string, error) {
+func String(data any, pretty ...bool) (string, error) {
 	if len(pretty) > 0 {
 		if pretty[0] {
 			d, err := json.MarshalIndent(data, "", "  ")
