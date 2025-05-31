@@ -71,8 +71,12 @@ func Time(start, end time.Time) time.Time {
 	return time.Unix(0, randomNano)
 }
 
-// it will be add more 13 char length
 func UniqueStr(length int) string {
+	return UniqueChar(length)
+}
+
+// it will be add more 13 char length
+func UniqueChar(length int) string {
 	var result string
 	counter := 0
 	for counter < length {
@@ -86,8 +90,13 @@ func UniqueStr(length int) string {
 	return result
 }
 
-// get random strings
+// Deprecated: in next version
 func Str(length int) string {
+	return Char(length)
+}
+
+// get random strings
+func Char(length int) string {
 	var result string
 	counter := 0
 	for counter < length {
