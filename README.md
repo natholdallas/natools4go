@@ -4,11 +4,14 @@
 go get -u github.com/natholdallas/natools4go
 ```
 
-| dir     | description                |
-| ------- | -------------------------- |
-| crypto  | about crypto               |
-| jsons   | json extenstion function   |
-| maths   | use math to break world    |
-| printer | easy packaging `fmt`       |
-| random  | random data generator      |
-| strs    | string extenstion function |
+| package | description                  |
+| ------- | ---------------------------- |
+| cryptos | about crypto                 |
+| fibers  | fiber tiny packaging support |
+| gorms   | gorm tiny packaging support  |
+| jsons   | json extenstion function     |
+| maths   | use math to break world      |
+| ptr     | easy packaging `fmt`         |
+| random  | random data generator        |
+| strs    | string extenstion function   |
+| va      | go-validation support        |
