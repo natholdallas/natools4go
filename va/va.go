@@ -24,9 +24,11 @@ func Struct(data any) error {
 		tag := err.Tag()
 		b.WriteString("[")
 		b.WriteString(field)
-		b.WriteString(":")
-		b.WriteString(fmt.Sprint(value))
-		b.WriteString("]: [")
+		if v := fmt.Sprint(value); v != "" {
+			b.WriteString(":")
+			b.WriteString(v)
+		}
+		b.WriteString("]:[")
 		if param == "" {
 			b.WriteString(tag)
 			b.WriteString("]")

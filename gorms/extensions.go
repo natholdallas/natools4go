@@ -19,6 +19,7 @@ type Setter[T any] interface {
 	Set(t *T)
 }
 
+// query action
 type QueryAction interface {
 	Condition(sql *gorm.DB)
 }
@@ -124,13 +125,16 @@ func PageConv[T, E any](tx *gorm.DB, s Pagination, convert func(v T) E) (*gorm.D
 	return sql, page
 }
 
+// get table's count
 func Count(tx *gorm.DB, model any) int64 {
 	var count int64
 	tx.Model(model).Count(&count)
 	return count
 }
 
-// TODO: use sql origin exists expression
+// sometime you need to know table has data
 func Exists(tx *gorm.DB, model any) bool {
-	return Count(tx, model) > 0
+	var count int64
+	tx.Model(model).Limit(1).Count(&count)
+	return count > 0
 }
