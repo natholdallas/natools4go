@@ -15,7 +15,9 @@ func (s *Sorter) Conv() clause.OrderByColumn {
 }
 
 func (s *Sorter) Sort(tx *gorm.DB) {
-	tx.Order(s.Conv())
+	if s.Name != "" {
+		tx.Order(s.Conv())
+	}
 }
 
 type Sorters struct {
@@ -31,5 +33,7 @@ func (s *Sorters) Conv() []clause.OrderByColumn {
 }
 
 func (s *Sorters) Sort(tx *gorm.DB) {
-	tx.Order(clause.OrderBy{Columns: s.Conv()})
+	if len(s.Cols) > 0 {
+		tx.Order(clause.OrderBy{Columns: s.Conv()})
+	}
 }
