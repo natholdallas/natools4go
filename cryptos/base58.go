@@ -1,3 +1,4 @@
+// Package cryptos
 package cryptos
 
 import (

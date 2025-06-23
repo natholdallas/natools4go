@@ -1,6 +1,9 @@
+// Package strs
 package strs
 
-import "strings"
+import (
+	"strings"
+)
 
 func EnsureAroundSlash(v string) string {
 	if !strings.HasPrefix(v, "/") {
@@ -24,4 +27,14 @@ func EnsureEndSlash(v string) string {
 		v = v + "/"
 	}
 	return v
+}
+
+func EnsureNoStartSlash(v string) string {
+	s, _ := strings.CutPrefix(v, "/")
+	return s
+}
+
+func EnsureNoEndSlash(v string) string {
+	s, _ := strings.CutSuffix(v, "/")
+	return s
 }

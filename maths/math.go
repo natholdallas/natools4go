@@ -1,6 +1,7 @@
+// Package maths
 package maths
 
-// use high performance way to divide then ceil
+// CeilDivide use algorithm way to divide then ceil
 func CeilDivide(a, b int64) int64 {
 	if (a > 0 && b > 0) || (a < 0 && b < 0) {
 		return (a + b - 1) / b
@@ -8,8 +9,7 @@ func CeilDivide(a, b int64) int64 {
 	return (a + b + 1) / b
 }
 
-// make split from numbers
-// example: SplitDigits(10), it returns [1,2,3,4,5,6,7,8,9,10]
+// SplitDigits make split from numbers, example: SplitDigits(114514), it returns [1, 1, 4, 5, 1, 4]
 func SplitDigits(n int64) []int64 {
 	if n == 0 {
 		return []int64{0}

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// shuffle the array, use fisher yate algorithm
+// FisherYateShuffle shuffle the array, use fisher yate algorithm
 func FisherYateShuffle[T any](arr []T) []T {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	r.Shuffle(len(arr), func(i, j int) {

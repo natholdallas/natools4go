@@ -5,26 +5,24 @@ import (
 
 	"github.com/natholdallas/natools4go/maths"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-// high performance strategy: nano's level
-// dto transform to database model
+// Getter dto transform to database model
 type Getter[T any] interface {
 	Get() T
 }
 
-// high performance strategy: nano's level
-// use dto sets database model's value
+// Setter use dto sets database model's value
 type Setter[T any] interface {
 	Set(t *T)
 }
 
-// query action
+// QueryAction is [gorm.DB] bridge
 type QueryAction interface {
 	Condition(sql *gorm.DB)
 }
 
-// soft delete model design
 type SoftModel struct {
 	ID        uint           `gorm:"column:id" json:"id"`
 	CreatedAt time.Time      `gorm:"column:created_at;type:datetime(6)" json:"createdAt"`
@@ -32,25 +30,21 @@ type SoftModel struct {
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"-"`
 }
 
-// model design
 type Model struct {
 	ID        uint      `gorm:"column:id" json:"id"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updatedAt"`
 }
 
-// tiny model design
 type TinyModel struct {
 	ID        uint      `gorm:"column:id" json:"id"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
 }
 
-// micro model design
 type MicroModel struct {
 	ID uint `gorm:"column:id" json:"id"`
 }
 
-// uuid soft model design
 type UUIDSoftModel struct {
 	ID        string         `gorm:"column:id;type:uuid" json:"id"`
 	CreatedAt time.Time      `gorm:"column:created_at;type:datetime(6)" json:"createdAt"`
@@ -58,42 +52,37 @@ type UUIDSoftModel struct {
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"-"`
 }
 
-// uuid model design
 type UUIDModel struct {
 	ID        string    `gorm:"column:id;type:uuid" json:"id"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updatedAt"`
 }
 
-// uuid tiny model design
 type UUIDTinyModel struct {
 	ID        string    `gorm:"column:id;type:uuid" json:"id"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
 }
 
-// uuid micro model design
 type UUIDMicroModel struct {
 	ID string `gorm:"column:id;type:uuid" json:"id"`
 }
 
-// paginate configuration
 type Pagination struct {
 	Page int `json:"page"`
 	Size int `json:"size"`
 }
 
-// page result struct
 type PageResult[T any] struct {
 	Total   int64 `json:"total"`
 	Page    int64 `json:"page"`
 	Content []T   `json:"content"`
 }
 
-// paging
+// Page paging the data
 func Page[T any](tx *gorm.DB, s Pagination) (*gorm.DB, PageResult[T]) {
 	content := []T{}
 	var total int64
-	sql := tx.
+	tx = tx.
 		Count(&total).
 		Scopes(PaginateScope(s.Page, s.Size)).
 		Find(&content)
@@ -102,14 +91,14 @@ func Page[T any](tx *gorm.DB, s Pagination) (*gorm.DB, PageResult[T]) {
 		Page:    maths.CeilDivide(total, int64(s.Size)),
 		Content: content,
 	}
-	return sql, page
+	return tx, page
 }
 
-// paging & convert
+// PageConv paging & convert
 func PageConv[T, E any](tx *gorm.DB, s Pagination, convert func(v T) E) (*gorm.DB, PageResult[E]) {
 	content := []T{}
 	var total int64
-	sql := tx.
+	tx = tx.
 		Count(&total).
 		Scopes(PaginateScope(s.Page, s.Size)).
 		Find(&content)
@@ -122,17 +111,46 @@ func PageConv[T, E any](tx *gorm.DB, s Pagination, convert func(v T) E) (*gorm.D
 		Page:    maths.CeilDivide(total, int64(s.Size)),
 		Content: converts,
 	}
-	return sql, page
+	return tx, page
 }
 
-// get table's count
+type Column struct {
+	Name string `json:"name"`
+	Desc bool   `json:"desc"`
+}
+
+func (s *Column) Conv() clause.OrderByColumn {
+	return clause.OrderByColumn{Column: clause.Column{Name: s.Name}, Desc: s.Desc}
+}
+
+func (s *Column) Condition(tx *gorm.DB) {
+	tx.Order(s.Conv())
+}
+
+type Columns struct {
+	Columns []Column `json:"columns"`
+}
+
+func (s *Columns) Conv() []clause.OrderByColumn {
+	res := []clause.OrderByColumn{}
+	for i := range s.Columns {
+		res = append(res, s.Columns[i].Conv())
+	}
+	return res
+}
+
+func (s *Columns) Condition(tx *gorm.DB) {
+	tx.Order(s.Conv())
+}
+
+// Count to get an table data count
 func Count(tx *gorm.DB, model any) int64 {
 	var count int64
 	tx.Model(model).Count(&count)
 	return count
 }
 
-// sometime you need to know table has data
+// Exists search table has any data
 func Exists(tx *gorm.DB, model any) bool {
 	var count int64
 	tx.Model(model).Limit(1).Count(&count)

@@ -1,3 +1,4 @@
+// Package jsons is tiny packaging support json
 package jsons
 
 import (

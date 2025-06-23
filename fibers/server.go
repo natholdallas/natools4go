@@ -1,3 +1,4 @@
+// Package fibers is tiny packaging support fiber
 package fibers
 
 import (
@@ -8,7 +9,13 @@ import (
 	"github.com/natholdallas/natools4go/va"
 )
 
-// get body and verify
+// IdentityParam simple embedded struct to get id param in your body struct mixin
+// only received by param
+type IdentityParam struct {
+	ID uint `param:"id" json:"-"`
+}
+
+// BodyParser get body and verify
 func BodyParser[T any](c *fiber.Ctx) (T, error) {
 	var v T
 	err := c.BodyParser(&v)
@@ -22,7 +29,7 @@ func BodyParser[T any](c *fiber.Ctx) (T, error) {
 	return v, err
 }
 
-// get params & body and verify, be commonly used to [POST, PUT, DELETE, PATCH]
+// RestParser get params and body and verify, be commonly used to [POST, PUT, DELETE, PATCH]
 func RestParser[T any](c *fiber.Ctx) (T, error) {
 	var v T
 	if err := c.ParamsParser(&v); err != nil {
@@ -37,7 +44,7 @@ func RestParser[T any](c *fiber.Ctx) (T, error) {
 	return v, nil
 }
 
-// get queries and verify, be commonly used to [GET]
+// QueryParser get queries and verify, be commonly used to [GET]
 func QueryParser[T any](c *fiber.Ctx) (T, error) {
 	var v T
 	if err := c.QueryParser(&v); err != nil {
@@ -49,7 +56,7 @@ func QueryParser[T any](c *fiber.Ctx) (T, error) {
 	return v, nil
 }
 
-// get gorm pagination
+// Pagination to getting the [gorms.Pagination] struct
 func Pagination(c *fiber.Ctx) gorms.Pagination {
 	return gorms.Pagination{
 		Page: c.QueryInt("page", 1),
@@ -57,31 +64,31 @@ func Pagination(c *fiber.Ctx) gorms.Pagination {
 	}
 }
 
-// get params as uint
+// ParamsUint get params as uint
 func ParamsUint(c *fiber.Ctx, key string, defaultValue ...int) (uint, error) {
 	value, err := strconv.ParseUint(c.Params(key), 10, 64)
 	return uint(value), err
 }
 
-// send status only use one line
+// Status only use one line
 func Status(c *fiber.Ctx, status int) error {
 	c.Status(status)
 	return nil
 }
 
-// send json and status
+// JSON to sending json body and status
 func JSON(c *fiber.Ctx, status int, data any) error {
 	c.Status(status)
 	return c.JSON(data)
 }
 
-// send string and status
+// SendString to sending string and status
 func SendString(c *fiber.Ctx, status int, str string) error {
 	c.Status(status)
 	return c.SendString(str)
 }
 
-// send an error
+// Err to sending fiber original error object
 func Err(value any, status ...int) *fiber.Error {
 	msg := ""
 	code := fiber.StatusBadRequest
