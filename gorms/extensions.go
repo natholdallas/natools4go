@@ -5,7 +5,6 @@ import (
 
 	"github.com/natholdallas/natools4go/maths"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // Getter dto transform to database model
@@ -112,35 +111,6 @@ func PageConv[T, E any](tx *gorm.DB, s Pagination, convert func(v T) E) (*gorm.D
 		Content: converts,
 	}
 	return tx, page
-}
-
-type Column struct {
-	Name string `json:"name"`
-	Desc bool   `json:"desc"`
-}
-
-func (s *Column) Conv() clause.OrderByColumn {
-	return clause.OrderByColumn{Column: clause.Column{Name: s.Name}, Desc: s.Desc}
-}
-
-func (s *Column) Condition(tx *gorm.DB) {
-	tx.Order(s.Conv())
-}
-
-type Columns struct {
-	Columns []Column `json:"columns"`
-}
-
-func (s *Columns) Conv() []clause.OrderByColumn {
-	res := []clause.OrderByColumn{}
-	for i := range s.Columns {
-		res = append(res, s.Columns[i].Conv())
-	}
-	return res
-}
-
-func (s *Columns) Condition(tx *gorm.DB) {
-	tx.Order(s.Conv())
 }
 
 // Count to get an table data count
