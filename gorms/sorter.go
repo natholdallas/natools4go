@@ -6,8 +6,8 @@ import (
 )
 
 type Sorter struct {
-	Name string `json:"name"`
-	Desc bool   `json:"desc"`
+	Name string `query:"name" json:"name"`
+	Desc bool   `query:"desc" json:"desc"`
 }
 
 func (s *Sorter) Conv() clause.OrderByColumn {
