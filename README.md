@@ -15,3 +15,4 @@ go get -u github.com/natholdallas/natools4go
 | random  | random data generator        |
 | strs    | string extenstion function   |
 | va      | go-validation support        |
+| vipers  | viper tiny packaging support |
