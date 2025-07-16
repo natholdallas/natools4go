@@ -3,7 +3,6 @@ package gorms
 import (
 	"time"
 
-	"github.com/natholdallas/natools4go/maths"
 	"gorm.io/gorm"
 )
 
@@ -17,9 +16,9 @@ type Setter[T any] interface {
 	Set(t *T)
 }
 
-// QueryAction is [gorm.DB] bridge
+// QueryAction is [gorm.DB] condition bridge
 type QueryAction interface {
-	Condition(sql *gorm.DB)
+	Condition(tx *gorm.DB)
 }
 
 type SoftModel struct {
@@ -67,62 +66,12 @@ type UUIDMicroModel struct {
 }
 
 type Pagination struct {
-	Page int `json:"page"`
-	Size int `json:"size"`
+	Page int `json:"page" query:"page"`
+	Size int `json:"size" query:"size"`
 }
 
 type PageResult[T any] struct {
 	Total   int64 `json:"total"`
 	Page    int64 `json:"page"`
 	Content []T   `json:"content"`
-}
-
-// Page paging the data
-func Page[T any](tx *gorm.DB, s Pagination) (*gorm.DB, PageResult[T]) {
-	content := []T{}
-	var total int64
-	tx = tx.
-		Count(&total).
-		Scopes(PaginateScope(s.Page, s.Size)).
-		Find(&content)
-	page := PageResult[T]{
-		Total:   total,
-		Page:    maths.CeilDivide(total, int64(s.Size)),
-		Content: content,
-	}
-	return tx, page
-}
-
-// PageConv paging & convert
-func PageConv[T, E any](tx *gorm.DB, s Pagination, convert func(v T) E) (*gorm.DB, PageResult[E]) {
-	content := []T{}
-	var total int64
-	tx = tx.
-		Count(&total).
-		Scopes(PaginateScope(s.Page, s.Size)).
-		Find(&content)
-	converts := []E{}
-	for _, i := range content {
-		converts = append(converts, convert(i))
-	}
-	page := PageResult[E]{
-		Total:   total,
-		Page:    maths.CeilDivide(total, int64(s.Size)),
-		Content: converts,
-	}
-	return tx, page
-}
-
-// Count to get an table data count
-func Count(tx *gorm.DB, model any) int64 {
-	var count int64
-	tx.Model(model).Count(&count)
-	return count
-}
-
-// Exists search table has any data
-func Exists(tx *gorm.DB, model any) bool {
-	var count int64
-	tx.Model(model).Limit(1).Count(&count)
-	return count > 0
 }

@@ -6,34 +6,34 @@ import (
 )
 
 type Sorter struct {
-	Name string `query:"name" json:"name"`
-	Desc bool   `query:"desc" json:"desc"`
+	Column string `query:"column" json:"column"`
+	Desc   bool   `query:"desc" json:"desc"`
 }
 
 func (s *Sorter) Conv() clause.OrderByColumn {
-	return clause.OrderByColumn{Column: clause.Column{Name: s.Name}, Desc: s.Desc}
+	return clause.OrderByColumn{Column: clause.Column{Name: s.Column}, Desc: s.Desc}
 }
 
 func (s *Sorter) Sort(tx *gorm.DB) {
-	if s.Name != "" {
+	if s.Column != "" {
 		tx.Order(s.Conv())
 	}
 }
 
 type Sorters struct {
-	Cols []Sorter `query:"cols" json:"cols"`
+	Columns []Sorter `query:"columns" json:"columns"`
 }
 
 func (s *Sorters) Conv() []clause.OrderByColumn {
 	res := []clause.OrderByColumn{}
-	for i := range s.Cols {
-		res = append(res, s.Cols[i].Conv())
+	for i := range s.Columns {
+		res = append(res, s.Columns[i].Conv())
 	}
 	return res
 }
 
 func (s *Sorters) Sort(tx *gorm.DB) {
-	if len(s.Cols) > 0 {
+	if len(s.Columns) > 0 {
 		tx.Order(clause.OrderBy{Columns: s.Conv()})
 	}
 }
