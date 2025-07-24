@@ -54,10 +54,10 @@ func PageConv[T, E any](tx *gorm.DB, s Pagination, conv func(v T) E) (*gorm.DB, 
 
 func PaginateScope(page, size int) GormScope {
 	return func(db *gorm.DB) *gorm.DB {
-		if page <= 0 {
+		if page < 1 {
 			page = 1
 		}
-		if size > 100 && size <= 0 {
+		if size < 1 && size > 100 {
 			size = 20
 		}
 		offset := (page - 1) * size
