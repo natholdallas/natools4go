@@ -4,9 +4,24 @@ package vipers
 import (
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 )
+
+type EventHandler func(e fsnotify.Event)
+
+var events []EventHandler = []EventHandler{}
+
+func Reload(e fsnotify.Event) {
+	for _, event := range events {
+		event(e)
+	}
+}
+
+func NewUpdateEvent(event EventHandler) {
+	events = append(events, event)
+}
 
 func Get[T cast.Basic](key string, defaultValue ...T) T {
 	if len(defaultValue) > 0 {

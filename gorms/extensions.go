@@ -6,6 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
+type GormScope = func(*gorm.DB) *gorm.DB
+
 // Getter dto transform to database model
 type Getter[T any] interface {
 	Get() T
@@ -63,15 +65,4 @@ type UUIDTinyModel struct {
 
 type UUIDMicroModel struct {
 	ID string `gorm:"column:id;type:uuid" json:"id"`
-}
-
-type Pagination struct {
-	Page int `json:"page" query:"page"`
-	Size int `json:"size" query:"size"`
-}
-
-type PageResult[T any] struct {
-	Total   int64 `json:"total"`
-	Page    int64 `json:"page"`
-	Content []T   `json:"content"`
 }

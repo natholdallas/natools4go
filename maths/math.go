@@ -3,7 +3,9 @@ package maths
 
 // CeilDivide use algorithm way to divide then ceil
 func CeilDivide(a, b int64) int64 {
-	if (a > 0 && b > 0) || (a < 0 && b < 0) {
+	if a == 0 || b == 0 {
+		return 0
+	} else if (a > 0 && b > 0) || (a < 0 && b < 0) {
 		return (a + b - 1) / b
 	}
 	return (a + b + 1) / b
