@@ -51,15 +51,29 @@ func RestVarser[T any](c *fiber.Ctx) (v T, err error) {
 }
 
 // QueryParser to get queries, be commonly used to [GET]
-func QueryParser[T any](c *fiber.Ctx) (T, error) {
-	var queries T
-	err := c.QueryParser(&queries)
-	return queries, err
+func QueryParser[T any](c *fiber.Ctx) (v T, err error) {
+	err = c.QueryParser(&v)
+	return
 }
 
 // QueryVarser to get queries and verify, be commonly used to [GET]
 func QueryVarser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.QueryParser(&v); err != nil {
+		return
+	}
+	err = va.Struct(v)
+	return
+}
+
+// ParamsParser to get queries, be commonly used to [GET]
+func ParamsParser[T any](c *fiber.Ctx) (v T, err error) {
+	err = c.QueryParser(&v)
+	return v, err
+}
+
+// ParamsVarser to get queries and verify
+func ParamsVarser[T any](c *fiber.Ctx) (v T, err error) {
+	if err = c.ParamsParser(&v); err != nil {
 		return
 	}
 	err = va.Struct(v)
