@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 )
 
-var logfunc fiber.Handler
+var logfunc = logger.New(logger.Config{Format: "[${ip}:${port}] ${time} ${status} - ${method} ${path}\n"})
 
 // ErrorHandler is optimized error handler impl
 func ErrorHandler(c *fiber.Ctx, err error) error {
@@ -35,8 +35,5 @@ func NoCache(c *fiber.Ctx) error {
 }
 
 func Logger(c *fiber.Ctx) error {
-	if logfunc == nil {
-		logfunc = logger.New(logger.Config{Format: "[${ip}:${port}] ${time} ${status} - ${method} ${path}\n"})
-	}
 	return logfunc(c)
 }
