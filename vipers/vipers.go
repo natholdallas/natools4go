@@ -19,8 +19,8 @@ func Reload(e fsnotify.Event) {
 	}
 }
 
-func NewUpdateEvent(event EventHandler) {
-	events = append(events, event)
+func NewUpdateEvent(es ...EventHandler) {
+	events = append(events, es...)
 }
 
 func Get[T cast.Basic](key string, defaultValue ...T) T {
