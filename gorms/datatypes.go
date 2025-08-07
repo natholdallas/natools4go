@@ -6,9 +6,9 @@ import (
 	"fmt"
 )
 
-type Slices[T any] []T
+type List[T any] []T
 
-func (sl *Slices[T]) Scan(value any) error {
+func (sl *List[T]) Scan(value any) error {
 	if value == nil {
 		*sl = nil
 		return nil
@@ -20,6 +20,6 @@ func (sl *Slices[T]) Scan(value any) error {
 	return json.Unmarshal(s, sl)
 }
 
-func (sl Slices[T]) Value() (driver.Value, error) {
+func (sl List[T]) Value() (driver.Value, error) {
 	return json.Marshal(sl)
 }

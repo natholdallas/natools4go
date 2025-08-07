@@ -14,5 +14,6 @@ go get -u github.com/natholdallas/natools4go
 | ptr     | easy packaging `fmt`         |
 | random  | random data generator        |
 | strs    | string extenstion function   |
+| syncs   | sync packaging support       |
 | va      | go-validation support        |
 | vipers  | viper tiny packaging support |
