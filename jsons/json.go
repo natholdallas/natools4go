@@ -30,3 +30,19 @@ func String(data any, pretty ...bool) (string, error) {
 	d, err := json.Marshal(data)
 	return string(d), err
 }
+
+func Set(source map[string]any, value any, keys ...string) {
+	src := source
+	for i, key := range keys {
+		// if last key
+		if len(keys)-1 == i {
+			src[key] = value
+			break
+		}
+		src = Get(src, key)
+	}
+}
+
+func Get(source map[string]any, key string) map[string]any {
+	return source[key].(map[string]any)
+}
