@@ -16,6 +16,6 @@ func JSON(v ...any) {
 
 func Struct(v ...any) {
 	for _, i := range v {
-		fmt.Println(i)
+		fmt.Printf("%+v\n", i)
 	}
 }

@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+const (
+	Dot    = "."
+	Slash  = "/"
+	Comma  = ","
+	Strike = "-"
+)
+
 func EnsureAroundSlash(v string) string {
 	if !strings.HasPrefix(v, "/") {
 		v = "/" + v

@@ -66,3 +66,25 @@ type UUIDTinyModel struct {
 type UUIDMicroModel struct {
 	ID string `gorm:"column:id;type:uuid" json:"id"`
 }
+
+type NeoSoftModel[T any] struct {
+	ID        T              `gorm:"column:id;primaryKey" json:"id"`
+	CreatedAt time.Time      `gorm:"column:created_at" json:"createdAt"`
+	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"-"`
+}
+
+type NeoModel[T any] struct {
+	ID        T         `gorm:"column:id;primaryKey" json:"id"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"column:updated_at" json:"updatedAt"`
+}
+
+type NeoTinyModel[T any] struct {
+	ID        T         `gorm:"column:id;primaryKey" json:"id"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
+}
+
+type NeoIDModel[T any] struct {
+	ID T `gorm:"column:id;primaryKey" json:"id"`
+}

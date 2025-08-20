@@ -43,6 +43,10 @@ func Set(source map[string]any, value any, keys ...string) {
 	}
 }
 
-func Get(source map[string]any, key string) map[string]any {
-	return source[key].(map[string]any)
+func Get(source map[string]any, keys ...string) map[string]any {
+	src := source
+	for _, key := range keys {
+		src = src[key].(map[string]any)
+	}
+	return src
 }

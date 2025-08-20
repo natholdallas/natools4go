@@ -10,6 +10,7 @@ require (
 	github.com/gofiber/contrib/jwt v1.1.2
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cast v1.9.2
 	github.com/spf13/viper v1.20.1
 	gorm.io/gorm v1.30.0
