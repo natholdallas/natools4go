@@ -10,7 +10,7 @@ type GormScope = func(*gorm.DB) *gorm.DB
 
 // Getter dto transform to database model
 type Getter[T any] interface {
-	Get() T
+	Get() *T
 }
 
 // Setter use dto sets database model's value
@@ -25,20 +25,20 @@ type QueryAction interface {
 
 type SoftModel struct {
 	ID        uint           `gorm:"column:id" json:"id"`
-	CreatedAt time.Time      `gorm:"column:created_at;type:datetime(6)" json:"createdAt"`
-	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updatedAt"`
+	CreatedAt time.Time      `gorm:"column:created_at;type:datetime(6)" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"-"`
 }
 
 type Model struct {
 	ID        uint      `gorm:"column:id" json:"id"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
-	UpdatedAt time.Time `gorm:"column:updated_at" json:"updatedAt"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
 type TinyModel struct {
 	ID        uint      `gorm:"column:id" json:"id"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
 }
 
 type MicroModel struct {
@@ -47,20 +47,20 @@ type MicroModel struct {
 
 type UUIDSoftModel struct {
 	ID        string         `gorm:"column:id;type:uuid" json:"id"`
-	CreatedAt time.Time      `gorm:"column:created_at;type:datetime(6)" json:"createdAt"`
-	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updatedAt"`
+	CreatedAt time.Time      `gorm:"column:created_at;type:datetime(6)" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"-"`
 }
 
 type UUIDModel struct {
 	ID        string    `gorm:"column:id;type:uuid" json:"id"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
-	UpdatedAt time.Time `gorm:"column:updated_at" json:"updatedAt"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
 type UUIDTinyModel struct {
 	ID        string    `gorm:"column:id;type:uuid" json:"id"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
 }
 
 type UUIDMicroModel struct {
@@ -69,20 +69,20 @@ type UUIDMicroModel struct {
 
 type NeoSoftModel[T any] struct {
 	ID        T              `gorm:"column:id;primaryKey" json:"id"`
-	CreatedAt time.Time      `gorm:"column:created_at" json:"createdAt"`
-	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updatedAt"`
-	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"-"`
+	CreatedAt time.Time      `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"deleted_at"`
 }
 
 type NeoModel[T any] struct {
 	ID        T         `gorm:"column:id;primaryKey" json:"id"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
-	UpdatedAt time.Time `gorm:"column:updated_at" json:"updatedAt"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
 type NeoTinyModel[T any] struct {
 	ID        T         `gorm:"column:id;primaryKey" json:"id"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"createdAt"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
 }
 
 type NeoIDModel[T any] struct {
