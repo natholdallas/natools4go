@@ -25,7 +25,7 @@ type QueryAction interface {
 
 type SoftModel struct {
 	ID        uint           `gorm:"column:id" json:"id"`
-	CreatedAt time.Time      `gorm:"column:created_at;type:datetime(6)" json:"created_at"`
+	CreatedAt time.Time      `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"-"`
 }
@@ -47,7 +47,7 @@ type MicroModel struct {
 
 type UUIDSoftModel struct {
 	ID        string         `gorm:"column:id;type:uuid" json:"id"`
-	CreatedAt time.Time      `gorm:"column:created_at;type:datetime(6)" json:"created_at"`
+	CreatedAt time.Time      `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"-"`
 }
