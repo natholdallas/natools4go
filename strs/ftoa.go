@@ -2,9 +2,6 @@ package strs
 
 import "strconv"
 
-// ftoa.go has common decimalism usages
-// format uint to string
-
 func FormatFloat(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }

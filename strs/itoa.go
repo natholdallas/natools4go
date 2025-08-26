@@ -2,9 +2,6 @@ package strs
 
 import "strconv"
 
-// itoa.go has common decimalism usages
-// format uint to string
-
 func FormatUint(i uint64) string {
 	return strconv.FormatUint(i, 10)
 }

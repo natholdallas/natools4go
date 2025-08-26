@@ -3,7 +3,7 @@ package syncs
 
 import "sync"
 
-func TaskPool(tasks ...func()) {
+func GroupWithTasks(tasks ...func()) *sync.WaitGroup {
 	var group sync.WaitGroup
 	group.Add(len(tasks))
 	for _, task := range tasks {
@@ -12,5 +12,5 @@ func TaskPool(tasks ...func()) {
 			task()
 		}()
 	}
-	group.Wait()
+	return &group
 }

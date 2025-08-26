@@ -3,14 +3,12 @@ module github.com/natholdallas/natools4go
 go 1.24.1
 
 require (
-	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/gofiber/contrib/jwt v1.1.2
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/golang-jwt/jwt/v5 v5.3.0
-	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cast v1.9.2
 	github.com/spf13/viper v1.20.1
 	gorm.io/gorm v1.30.0

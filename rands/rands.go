@@ -1,5 +1,5 @@
-// Package random
-package random
+// Package rands
+package rands
 
 import (
 	"math/big"
@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/natholdallas/natools4go/maths"
 )
 
@@ -16,21 +15,6 @@ var (
 	chars    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	numchars = "aBcDeFgHiJ" // replace 0...9 char
 )
-
-// Name get a random full name, gen by [randomdata.FullName]
-func Name() string {
-	return randomdata.FullName(randomdata.RandomGender)
-}
-
-// Deprecated: Avatar get a random avatar url, gen by [randomdata.SillyName] and website https://avatar.iran.liara.run
-func Avatar() string {
-	return "https://avatar.iran.liara.run/public/girl?username=" + randomdata.SillyName()
-}
-
-// Cover get a random cover preset url, size[400x300], gen by [randomdata.Number] and website https://picsum.photos
-func Cover() string {
-	return "https://picsum.photos/id/" + strconv.Itoa(randomdata.Number(100)) + "/400/300.webp"
-}
 
 // Split random numbers, the number could be zero
 func Split(number, parts int) []int {
@@ -88,7 +72,7 @@ func Time(start, end time.Time) time.Time {
 	return time.Unix(0, nano)
 }
 
-// UniqueChar it will be add more 13 char length
+// Deprecated: UniqueChar it will be add more 13 char length
 func UniqueChar(length int) string {
 	var result string
 	counter := 0

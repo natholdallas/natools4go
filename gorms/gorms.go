@@ -4,7 +4,6 @@ package gorms
 
 import (
 	"database/sql"
-	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -16,9 +15,7 @@ import (
 func StrictOpen(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 	tx, err := gorm.Open(dialector, opts...)
 	if err != nil {
-		log.Fatal(err)
-		// TODO: replaced in next version
-		// panic(err)
+		panic(err)
 	}
 	return tx
 }
@@ -51,8 +48,8 @@ func CreateDB(dbName string, driverName, dataSourceName string) error {
 	return db.Close()
 }
 
-// GormPreset just to eliminate the reuse of code
-func GormPreset(tx *gorm.DB) error {
+// Preset just to eliminate the reuse of code
+func Preset(tx *gorm.DB) error {
 	db, err := tx.DB()
 	if err != nil {
 		return err
