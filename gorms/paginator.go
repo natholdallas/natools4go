@@ -27,38 +27,30 @@ type PageResult[T any] struct {
 	Content []T   `json:"content"`
 }
 
-// Page paging the data
-func Page[T any](tx *gorm.DB, pagination Pagination) (*gorm.DB, PageResult[T]) {
-	content := []T{}
+func Page[T any](db *gorm.DB, pagination Pagination) (PageResult[T], error) {
 	var count int64
-	tx = tx.
-		Count(&count).
-		Scopes(pagination.Scope).
-		Find(&content)
+	var content []T
+	err := db.Count(&count).Scopes(pagination.Scope).Find(&content).Error
 	page := PageResult[T]{
 		Total:   count,
 		Page:    maths.CeilDivide(count, int64(pagination.Size)),
 		Content: content,
 	}
-	return tx, page
+	return page, err
 }
 
-// PageConv paging & convert data
-func PageConv[T, E any](tx *gorm.DB, pagination Pagination, conv func(v T) E) (PageResult[E], error) {
+func PageConv[T, E any](db *gorm.DB, pagination Pagination, conv func(v T) E) (PageResult[E], error) {
 	var total int64
 	var content []T
-	tx = tx.
-		Count(&total).
-		Scopes(pagination.Scope).
-		Find(&content)
+	err := db.Count(&total).Scopes(pagination.Scope).Find(&content).Error
 	converts := []E{}
-	for _, i := range content {
-		converts = append(converts, conv(i))
+	for i := range content {
+		converts = append(converts, conv(content[i]))
 	}
 	page := PageResult[E]{
 		Total:   total,
 		Page:    maths.CeilDivide(total, int64(pagination.Size)),
 		Content: converts,
 	}
-	return page, tx.Error
+	return page, err
 }
