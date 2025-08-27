@@ -4,7 +4,6 @@ package gorms
 
 import (
 	"database/sql"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -20,7 +19,7 @@ func StrictOpen(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 	return tx
 }
 
-// CreateDropDB can create database and drop the database, it will faster than turncate and
+// CreateDropDB is a strategy to create database and drop the database, it will faster than turncate and
 // most important it is affinity with dev mode while you are first design your database
 func CreateDropDB(dbName string, driverName, dataSourceName string) error {
 	db, err := sql.Open(driverName, dataSourceName)
@@ -36,7 +35,7 @@ func CreateDropDB(dbName string, driverName, dataSourceName string) error {
 	return db.Close()
 }
 
-// CreateDB can create database while you use sql
+// CreateDB can create database while use sql
 func CreateDB(dbName string, driverName, dataSourceName string) error {
 	db, err := sql.Open(driverName, dataSourceName)
 	if err != nil {
@@ -46,16 +45,4 @@ func CreateDB(dbName string, driverName, dataSourceName string) error {
 		return err
 	}
 	return db.Close()
-}
-
-// Preset just to eliminate the reuse of code
-func Preset(tx *gorm.DB) error {
-	db, err := tx.DB()
-	if err != nil {
-		return err
-	}
-	db.SetMaxIdleConns(10)
-	db.SetMaxOpenConns(100)
-	db.SetConnMaxLifetime(time.Hour)
-	return nil
 }

@@ -18,9 +18,9 @@ type Setter[T any] interface {
 	Set(t *T)
 }
 
-// QueryAction is [gorm.DB] condition bridge
-type QueryAction interface {
-	Condition(tx *gorm.DB)
+// Scoper is [gorm.DB] condition bridge
+type Scoper interface {
+	Scope(tx *gorm.DB) *gorm.DB
 }
 
 type SoftModel[T any] struct {
@@ -36,11 +36,12 @@ type Model[T any] struct {
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
+type IDModel[T any] struct {
+	ID T `gorm:"column:id;primaryKey" json:"id"`
+}
+
+// TinyModel Deprecated: is not good design for model, we comment [Model]
 type TinyModel[T any] struct {
 	ID        T         `gorm:"column:id;primaryKey" json:"id"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
-}
-
-type IDModel[T any] struct {
-	ID T `gorm:"column:id;primaryKey" json:"id"`
 }

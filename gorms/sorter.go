@@ -10,6 +10,13 @@ type Sorter struct {
 	Desc   bool   `query:"desc" json:"desc"`
 }
 
+func (s *Sorter) Scope(tx *gorm.DB) *gorm.DB {
+	if s.Column != "" {
+		return tx.Order(s.Conv())
+	}
+	return tx
+}
+
 func (s *Sorter) Conv() clause.OrderByColumn {
 	return clause.OrderByColumn{Column: clause.Column{Name: s.Column}, Desc: s.Desc}
 }
@@ -22,6 +29,13 @@ func (s *Sorter) Sort(tx *gorm.DB) {
 
 type Sorters struct {
 	Columns []Sorter `query:"columns" json:"columns"`
+}
+
+func (s *Sorters) Scope(tx *gorm.DB) *gorm.DB {
+	if len(s.Columns) > 0 {
+		return tx.Order(clause.OrderBy{Columns: s.Conv()})
+	}
+	return tx
 }
 
 func (s *Sorters) Conv() []clause.OrderByColumn {

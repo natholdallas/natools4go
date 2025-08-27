@@ -10,6 +10,17 @@ type Pagination struct {
 	Size int `json:"size" query:"size"`
 }
 
+func (s *Pagination) Scope(db *gorm.DB) *gorm.DB {
+	if s.Page < 1 {
+		s.Page = 1
+	}
+	if s.Size < 1 && s.Size > 100 {
+		s.Size = 20
+	}
+	offset := (s.Page - 1) * s.Size
+	return db.Offset(offset).Limit(s.Size)
+}
+
 type PageResult[T any] struct {
 	Total   int64 `json:"total"`
 	Page    int64 `json:"page"`
@@ -17,28 +28,28 @@ type PageResult[T any] struct {
 }
 
 // Page paging the data
-func Page[T any](tx *gorm.DB, s Pagination) (*gorm.DB, PageResult[T]) {
+func Page[T any](tx *gorm.DB, pagination Pagination) (*gorm.DB, PageResult[T]) {
 	content := []T{}
-	var total int64
+	var count int64
 	tx = tx.
-		Count(&total).
-		Scopes(PaginateScope(s.Page, s.Size)).
+		Count(&count).
+		Scopes(pagination.Scope).
 		Find(&content)
 	page := PageResult[T]{
-		Total:   total,
-		Page:    maths.CeilDivide(total, int64(s.Size)),
+		Total:   count,
+		Page:    maths.CeilDivide(count, int64(pagination.Size)),
 		Content: content,
 	}
 	return tx, page
 }
 
 // PageConv paging & convert data
-func PageConv[T, E any](tx *gorm.DB, s Pagination, conv func(v T) E) (*gorm.DB, PageResult[E]) {
-	content := []T{}
+func PageConv[T, E any](tx *gorm.DB, pagination Pagination, conv func(v T) E) (PageResult[E], error) {
 	var total int64
+	var content []T
 	tx = tx.
 		Count(&total).
-		Scopes(PaginateScope(s.Page, s.Size)).
+		Scopes(pagination.Scope).
 		Find(&content)
 	converts := []E{}
 	for _, i := range content {
@@ -46,21 +57,8 @@ func PageConv[T, E any](tx *gorm.DB, s Pagination, conv func(v T) E) (*gorm.DB, 
 	}
 	page := PageResult[E]{
 		Total:   total,
-		Page:    maths.CeilDivide(total, int64(s.Size)),
+		Page:    maths.CeilDivide(total, int64(pagination.Size)),
 		Content: converts,
 	}
-	return tx, page
-}
-
-func PaginateScope(page, size int) GormScope {
-	return func(db *gorm.DB) *gorm.DB {
-		if page < 1 {
-			page = 1
-		}
-		if size < 1 && size > 100 {
-			size = 20
-		}
-		offset := (page - 1) * size
-		return db.Offset(offset).Limit(size)
-	}
+	return page, tx.Error
 }
