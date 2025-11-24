@@ -8,9 +8,11 @@ import (
 )
 
 func PrintErr(err error) {
-	fmt.Println(err)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
-func PrintReturnValue(v ...any) {
+func PrintValue(v ...any) {
 	ptr.JSON(v)
 }

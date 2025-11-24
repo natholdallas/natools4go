@@ -12,6 +12,13 @@ func Count(tx *gorm.DB, model any) (count int64) {
 	return
 }
 
+// Emptied used to check table's data is empty
+func Emptied(tx *gorm.DB, model any) bool {
+	var count int64
+	tx.Model(model).Count(&count)
+	return count <= 0
+}
+
 // Exists search table has any data
 func Exists(tx *gorm.DB, model any) bool {
 	var count int64

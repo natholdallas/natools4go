@@ -3,7 +3,7 @@ package syncs
 
 import "sync"
 
-func GroupWithTasks(tasks ...func()) *sync.WaitGroup {
+func GroupTasks(tasks ...func()) *sync.WaitGroup {
 	var group sync.WaitGroup
 	group.Add(len(tasks))
 	for _, task := range tasks {
@@ -13,4 +13,9 @@ func GroupWithTasks(tasks ...func()) *sync.WaitGroup {
 		}()
 	}
 	return &group
+}
+
+func Tasks(tasks ...func()) {
+	groups := GroupTasks(tasks...)
+	groups.Wait()
 }

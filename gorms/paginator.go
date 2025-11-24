@@ -21,36 +21,32 @@ func (s *Pagination) Scope(db *gorm.DB) *gorm.DB {
 	return db.Offset(offset).Limit(s.Size)
 }
 
-type PageResult[T any] struct {
+type Page[T any] struct {
 	Total   int64 `json:"total"`
 	Page    int64 `json:"page"`
 	Content []T   `json:"content"`
 }
 
-func Page[T any](db *gorm.DB, pagination Pagination) (PageResult[T], error) {
-	var count int64
-	var content []T
-	err := db.Count(&count).Scopes(pagination.Scope).Find(&content).Error
-	page := PageResult[T]{
-		Total:   count,
-		Page:    maths.CeilDivide(count, int64(pagination.Size)),
-		Content: content,
+func PageMap[T, E any](page Page[T], conv func(v T) E) Page[E] {
+	converts := []E{}
+	for i := range page.Content {
+		converts = append(converts, conv(page.Content[i]))
 	}
-	return page, err
+	return Page[E]{
+		Total:   page.Total,
+		Page:    page.Page,
+		Content: converts,
+	}
 }
 
-func PageConv[T, E any](db *gorm.DB, pagination Pagination, conv func(v T) E) (PageResult[E], error) {
+func Paginate[T any](db *gorm.DB, pagination Pagination) (Page[T], error) {
 	var total int64
 	var content []T
 	err := db.Count(&total).Scopes(pagination.Scope).Find(&content).Error
-	converts := []E{}
-	for i := range content {
-		converts = append(converts, conv(content[i]))
-	}
-	page := PageResult[E]{
+	page := Page[T]{
 		Total:   total,
 		Page:    maths.CeilDivide(total, int64(pagination.Size)),
-		Content: converts,
+		Content: content,
 	}
 	return page, err
 }

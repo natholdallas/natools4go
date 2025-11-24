@@ -39,9 +39,3 @@ type Model[T any] struct {
 type IDModel[T any] struct {
 	ID T `gorm:"column:id;primaryKey" json:"id"`
 }
-
-// TinyModel Deprecated: is not good design for model, we comment [Model]
-type TinyModel[T any] struct {
-	ID        T         `gorm:"column:id;primaryKey" json:"id"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
-}
