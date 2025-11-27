@@ -8,18 +8,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JwtBasic for next version design to use middleware
-// it can used by any user table or others data struct [Claims.ID] type, now only use uint
-// try add genericity in jwt middleware template design in the future
-// type JwtBasic interface {
-// 	string | uint | uint8 | uint16 | uint32 | uint64 | int | int8 | int16 | int32 | int64
-// }
-
-// type Claims struct {
-// 	jwt.RegisteredClaims
-// 	ID uint `json:"jti,omitempty"`
-// }
-
 // Jwtware is simply middleware func
 // example: var IsLogin = Jwtware("xxx")
 func Jwtware(secretKey string) func(c *fiber.Ctx) error {
@@ -46,7 +34,7 @@ func GenToken(ID string, secretKey string, endtime ...time.Duration) (string, er
 	return token.SignedString([]byte(secretKey))
 }
 
-// ParseToken can parse to [Claims] by token and secretKey
+// ParseToken can parse to [jwt.RegisteredClaims] by token and secretKey
 func ParseToken(token, secretKey string) (claims jwt.RegisteredClaims, err error) {
 	_, err = jwt.ParseWithClaims(token, &claims, func(token *jwt.Token) (any, error) {
 		return []byte(secretKey), nil

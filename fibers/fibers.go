@@ -2,8 +2,6 @@
 package fibers
 
 import (
-	"strconv"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/natholdallas/natools4go/va"
 )
@@ -13,13 +11,66 @@ type IdentityParam struct {
 	ID uint `param:"id" json:"-"`
 }
 
-// BodyParser to get body
+// FormData to get any source data as data, sort by [fiber.BodyParser]
+func FormData[T any](c *fiber.Ctx) (v T, err error) {
+	if err = c.ParamsParser(&v); err != nil {
+		return
+	}
+	if err = c.QueryParser(&v); err != nil {
+		return
+	}
+	if err = c.BodyParser(&v); err != nil {
+		return
+	}
+	err = va.Struct(v)
+	return
+}
+
+// CookieParser is used to bind cookies to a struct
+func CookieParser[T any](c *fiber.Ctx) (v T, err error) {
+	err = c.CookieParser(&v)
+	return
+}
+
+// CookieVarser is used to bind cookies to a struct then verify
+func CookieVarser[T any](c *fiber.Ctx) (v T, err error) {
+	if err = c.CookieParser(&v); err != nil {
+		return
+	}
+	err = va.Struct(v)
+	return
+}
+
+// ReqHeaderParser binds the request header strings to a struct.
+func ReqHeaderParser[T any](c *fiber.Ctx) (v T, err error) {
+	err = c.ReqHeaderParser(&v)
+	return
+}
+
+// ReqHeaderVarser binds the request header strings to a struct then verify.
+func ReqHeaderVarser[T any](c *fiber.Ctx) (v T, err error) {
+	if err = c.ReqHeaderParser(&v); err != nil {
+		return
+	}
+	err = va.Struct(v)
+	return
+}
+
+// BodyParser binds the request body to a struct.
+// It supports decoding the following content types based on the Content-Type header:
+// application/json, application/xml, application/x-www-form-urlencoded, multipart/form-data
+// All JSON extenstion mime types are supported (eg. application/problem+json)
+// If none of the content types above are matched, it will return a ErrUnprocessableEntity error
 func BodyParser[T any](c *fiber.Ctx) (v T, err error) {
 	err = c.BodyParser(&v)
 	return
 }
 
-// BodyVarser to get body and verify
+// BodyVarser binds the request body to a struct then verify.
+// It supports decoding the following content types based on the Content-Type header:
+// application/json, application/xml, application/x-www-form-urlencoded, multipart/form-data
+// All JSON extenstion mime types are supported (eg. application/problem+json)
+// If none of the content types above are matched, it will return a ErrUnprocessableEntity error
 func BodyVarser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.BodyParser(&v); err != nil {
 		return
@@ -28,7 +79,8 @@ func BodyVarser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// RestParser to get params and body, be commonly used to [POST, PUT, DELETE, PATCH]
+// RestParser to get params and body
+// be commonly used to [POST, PUT, DELETE, PATCH]
 func RestParser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.ParamsParser(&v); err != nil {
 		return
@@ -37,7 +89,8 @@ func RestParser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// RestVarser to get params and body and verify, be commonly used to [POST, PUT, DELETE, PATCH]
+// RestVarser to get params and body and verify
+// be commonly used to [POST, PUT, DELETE, PATCH]
 func RestVarser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.ParamsParser(&v); err != nil {
 		return
@@ -67,7 +120,7 @@ func QueryVarser[T any](c *fiber.Ctx) (v T, err error) {
 // ParamsParser to get queries, be commonly used to [GET]
 func ParamsParser[T any](c *fiber.Ctx) (v T, err error) {
 	err = c.QueryParser(&v)
-	return v, err
+	return
 }
 
 // ParamsVarser to get queries and verify
@@ -77,12 +130,6 @@ func ParamsVarser[T any](c *fiber.Ctx) (v T, err error) {
 	}
 	err = va.Struct(v)
 	return
-}
-
-// ParamsUint get params as uint
-func ParamsUint(c *fiber.Ctx, key string, defaultValue ...int) (uint, error) {
-	value, err := strconv.ParseUint(c.Params(key), 10, 64)
-	return uint(value), err
 }
 
 // Status only use one line

@@ -2,13 +2,12 @@ package fibers
 
 import (
 	"errors"
-	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/natholdallas/natools4go/strs"
 )
-
-var logfunc = logger.New(logger.Config{Format: "[${ip}:${port}] ${time} ${status} - ${method} ${path}\n"})
 
 // ErrorHandler is optimized error handler impl
 func ErrorHandler(c *fiber.Ctx, err error) error {
@@ -22,18 +21,22 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 	return c.Status(code).JSON(fiber.Error{Code: code, Message: err.Error()})
 }
 
-func Cache(time int64) func(c *fiber.Ctx) error {
+// Cache used to set response header cache middleware
+func Cache(time int64) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		c.Set(fiber.HeaderCacheControl, "public, max-age="+strconv.FormatInt(time, 10))
+		c.Set(fiber.HeaderCacheControl, "public, max-age="+strs.FormatInt(time))
 		return c.Next()
 	}
 }
 
-func NoCache(c *fiber.Ctx) error {
-	c.Set(fiber.HeaderCacheControl, "no-cache")
-	return c.Next()
-}
-
-func Logger(c *fiber.Ctx) error {
-	return logfunc(c)
+// Logger create log route middleware
+func Logger(prefix ...string) fiber.Handler {
+	v := ""
+	if len(prefix) == 1 {
+		v = prefix[0]
+	}
+	return logger.New(logger.Config{
+		TimeFormat: time.DateTime,
+		Format:     "[" + v + "]: ${ip}:${port} ${time} ${status} - ${method} ${path} ${error}\n",
+	})
 }
