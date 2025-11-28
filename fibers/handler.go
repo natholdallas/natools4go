@@ -30,13 +30,13 @@ func Cache(time int64) fiber.Handler {
 }
 
 // Logger create log route middleware
-func Logger(prefix ...string) fiber.Handler {
-	v := ""
-	if len(prefix) == 1 {
-		v = prefix[0]
+func Logger(name string, format ...string) fiber.Handler {
+	f := "${ip} ${time} ${status} - ${method} ${path} ${error}\n"
+	if len(format) > 0 {
+		f = format[0]
 	}
 	return logger.New(logger.Config{
 		TimeFormat: time.DateTime,
-		Format:     "[" + v + "]: ${ip}:${port} ${time} ${status} - ${method} ${path} ${error}\n",
+		Format:     "[" + name + "] " + f,
 	})
 }

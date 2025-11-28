@@ -40,8 +40,8 @@ func PageMap[T, E any](page Page[T], conv func(v T) E) Page[E] {
 }
 
 func Paginate[T any](db *gorm.DB, pagination Pagination) (Page[T], error) {
-	var total int64
-	var content []T
+	total := int64(0)
+	content := []T{}
 	err := db.Count(&total).Scopes(pagination.Scope).Find(&content).Error
 	page := Page[T]{
 		Total:   total,

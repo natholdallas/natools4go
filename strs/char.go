@@ -13,12 +13,8 @@ const (
 )
 
 func EnsureAroundChar(v, char string) string {
-	if !strings.HasPrefix(v, char) {
-		v = char + v
-	}
-	if !strings.HasSuffix(v, char) {
-		v = v + char
-	}
+	v = EnsureStartChar(v, char)
+	v = EnsureEndChar(v, char)
 	return v
 }
 

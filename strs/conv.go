@@ -32,3 +32,12 @@ func ParseFloat[T constraints.Float](f string) T {
 	v, _ := strconv.ParseFloat(f, 64)
 	return T(v)
 }
+
+func FormatBool(b bool) string {
+	return strconv.FormatBool(b)
+}
+
+func ParseBool(s string) bool {
+	v, _ := strconv.ParseBool(s)
+	return v
+}
