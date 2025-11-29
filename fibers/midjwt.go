@@ -10,7 +10,7 @@ import (
 
 // Jwtware is simply middleware func
 // example: var IsLogin = Jwtware("xxx")
-func Jwtware(secretKey string) func(c *fiber.Ctx) error {
+func Jwtware(secretKey string) fiber.Handler {
 	return jwtware.New(jwtware.Config{
 		SigningKey:   jwtware.SigningKey{Key: []byte(secretKey)},
 		ErrorHandler: JwtErrorHandler,
@@ -40,4 +40,33 @@ func ParseToken(token, secretKey string) (claims jwt.RegisteredClaims, err error
 		return []byte(secretKey), nil
 	})
 	return claims, err
+}
+
+type Jwt struct {
+	SecretKey  string
+	Middleware fiber.Handler
+}
+
+func NewJwt(secretKey string) Jwt {
+	middleware := jwtware.New(jwtware.Config{
+		SigningKey:   jwtware.SigningKey{Key: []byte(secretKey)},
+		ErrorHandler: JwtErrorHandler,
+	})
+	return Jwt{secretKey, middleware}
+}
+
+// GenToken can generate token by secretKey
+func (j *Jwt) GenToken(ID string, endtime ...time.Duration) (string, error) {
+	return GenToken(ID, j.SecretKey, endtime...)
+}
+
+// ParseTokenWithFiber can parse to [jwt.RegisteredClaims] by token and secretKey by fiber context
+func (j *Jwt) ParseTokenWithFiber(c *fiber.Ctx, schema ...string) (jwt.RegisteredClaims, error) {
+	token := GetAuthorization(c, schema...)
+	return ParseToken(token, j.SecretKey)
+}
+
+// ParseToken can parse to [jwt.RegisteredClaims] by token and secretKey
+func (j *Jwt) ParseToken(token string) (jwt.RegisteredClaims, error) {
+	return ParseToken(token, j.SecretKey)
 }
