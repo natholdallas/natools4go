@@ -14,6 +14,7 @@ func Jwtware(secretKey string) fiber.Handler {
 	return jwtware.New(jwtware.Config{
 		SigningKey:   jwtware.SigningKey{Key: []byte(secretKey)},
 		ErrorHandler: JwtErrorHandler,
+		Claims:       &jwt.RegisteredClaims{},
 	})
 }
 
@@ -60,13 +61,13 @@ func (j *Jwt) GenToken(ID string, endtime ...time.Duration) (string, error) {
 	return GenToken(ID, j.SecretKey, endtime...)
 }
 
-// ParseTokenWithFiber can parse to [jwt.RegisteredClaims] by token and secretKey by fiber context
-func (j *Jwt) ParseTokenWithFiber(c *fiber.Ctx, schema ...string) (jwt.RegisteredClaims, error) {
-	token := GetAuthorization(c, schema...)
+// ParseToken get [jwt.RegisteredClaims] by token and secretKey
+func (j *Jwt) ParseToken(token string) (jwt.RegisteredClaims, error) {
 	return ParseToken(token, j.SecretKey)
 }
 
-// ParseToken can parse to [jwt.RegisteredClaims] by token and secretKey
-func (j *Jwt) ParseToken(token string) (jwt.RegisteredClaims, error) {
-	return ParseToken(token, j.SecretKey)
+// Claims get [jwt.RegisteredClaims] by [fiber.Ctx]
+func (j *Jwt) Claims(c *fiber.Ctx) *jwt.RegisteredClaims {
+	v := c.Locals("user").(*jwt.Token).Claims.(*jwt.RegisteredClaims)
+	return v
 }
