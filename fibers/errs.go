@@ -1,36 +1,72 @@
 package fibers
 
 import (
-	"errors"
-
 	"github.com/gofiber/fiber/v2"
 )
 
-// TODO: design error handle logic
+// for example:
+// func FindUser(c *fiber.Ctx) {
+// 		xxxxxx
+// 		return fibers.Error{Code: 200}
+// }
 
-// Err to sending fiber original error object
-func Err(value any, status ...int) *fiber.Error {
-	msg := ""
-	code := fiber.StatusBadRequest
-	if str, ok := value.(string); ok {
-		msg = str
-	} else if err, ok := value.(error); ok {
-		msg = err.Error()
-	}
-	if len(status) > 0 {
-		code = status[0]
-	}
-	return &fiber.Error{Code: code, Message: msg}
+type Error struct {
+	Status  int    `json:"-"`                 // http status code
+	Code    string `json:"code,omitempty"`    // business status code (optional)
+	Message string `json:"message,omitempty"` // message (optional)
+	System  error  `json:"system,omitempty"`  // system error (optional)
+}
+
+func (e *Error) Error() string {
+	return e.Message
+}
+
+var (
+	errDevMode bool                  = false
+	errPrinter func(err error)       = nil
+	errHandler func(err error) Error = nil
+)
+
+func SetErrorHandlerDevMode(s bool) {
+	errDevMode = s
+}
+
+func SetErrorHandlerPrinter(s func(err error)) {
+	errPrinter = s
+}
+
+func SetErrorHandler(s func(err error) Error) {
+	errHandler = s
 }
 
 // ErrorHandler is optimized error handler impl
 func ErrorHandler(c *fiber.Ctx, err error) error {
-	code := fiber.StatusBadRequest
-	var e *fiber.Error
-	if errors.As(err, &e) {
-		if e.Code != 0 {
-			code = e.Code
+	status := fiber.StatusBadRequest
+	data := Error{}
+
+	switch e := err.(type) {
+	case *Error:
+		status = e.Status
+		data.Code = e.Code
+		data.Message = e.Message
+		if errDevMode {
+			data.System = e.System
+		}
+		if errPrinter != nil {
+			errPrinter(e.System)
+		}
+
+	case *fiber.Error:
+		status = e.Code
+		data.Message = e.Message
+
+	default:
+		if errHandler != nil {
+			data = errHandler(e)
+			status = data.Status
+		} else {
+			data.Message = e.Error()
 		}
 	}
-	return c.Status(code).JSON(fiber.Error{Code: code, Message: err.Error()})
+	return c.Status(status).JSON(data)
 }

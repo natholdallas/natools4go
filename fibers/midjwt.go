@@ -20,7 +20,7 @@ func Jwtware(secretKey string) fiber.Handler {
 
 // JwtErrorHandler if you only used error handler
 func JwtErrorHandler(c *fiber.Ctx, err error) error {
-	return Err(err, fiber.StatusUnauthorized)
+	return fiber.NewError(fiber.StatusUnauthorized, err.Error())
 }
 
 // GenToken can generate token by secretKey
