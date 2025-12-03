@@ -49,11 +49,7 @@ type Jwt struct {
 }
 
 func NewJwt(secretKey string) Jwt {
-	middleware := jwtware.New(jwtware.Config{
-		SigningKey:   jwtware.SigningKey{Key: []byte(secretKey)},
-		ErrorHandler: JwtErrorHandler,
-	})
-	return Jwt{secretKey, middleware}
+	return Jwt{secretKey, Jwtware(secretKey)}
 }
 
 // GenToken can generate token by secretKey
