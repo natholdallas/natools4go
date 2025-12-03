@@ -4,11 +4,20 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// for example:
-// func FindUser(c *fiber.Ctx) {
-// 		xxxxxx
-// 		return fibers.Error{Code: 200}
-// }
+/*
+func FindUser(c *fiber.Ctx) error {
+	 user, err := db.FindUserByID(1)
+	 if err != nil {
+	 	 return Error{
+	 	 	 Status:  fiber.StatusBadRequest,
+	 	 	 Code:    "err.record.not.found",
+	 	 	 Message: "record not found in our database",
+	 	 	 System:  err,
+	 	 }
+	 }
+	 return nil
+}
+*/
 
 type Error struct {
 	Status  int    `json:"-"`                 // http status code
@@ -17,7 +26,7 @@ type Error struct {
 	System  error  `json:"system,omitempty"`  // system error (optional)
 }
 
-func (e *Error) Error() string {
+func (e Error) Error() string {
 	return e.Message
 }
 
