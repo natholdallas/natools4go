@@ -4,21 +4,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-/*
-func FindUser(c *fiber.Ctx) error {
-	 user, err := db.FindUserByID(1)
-	 if err != nil {
-	 	 return Error{
-	 	 	 Status:  fiber.StatusBadRequest,
-	 	 	 Code:    "err.record.not.found",
-	 	 	 Message: "record not found in our database",
-	 	 	 System:  err,
-	 	 }
-	 }
-	 return nil
-}
-*/
-
 type Error struct {
 	Status  int    `json:"-"`                 // http status code
 	Code    string `json:"code,omitempty"`    // business status code (optional)
@@ -55,9 +40,11 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 
 	switch e := err.(type) {
 	case *Error:
-		status = e.Status
 		data.Code = e.Code
 		data.Message = e.Message
+		if e.Status != 0 {
+			status = e.Status
+		}
 		if errDevMode {
 			data.System = e.System
 		}
@@ -66,16 +53,27 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 		}
 
 	case *fiber.Error:
-		status = e.Code
+		if e.Code != 0 {
+			status = e.Code
+		}
 		data.Message = e.Message
 
 	default:
 		if errHandler != nil {
-			data = errHandler(e)
-			status = data.Status
-		} else {
-			data.Message = e.Error()
+			v := errHandler(e)
+			data.Code = v.Code
+			data.Message = v.Message
+			if v.Status != 0 {
+				status = v.Status
+			}
+			if errDevMode {
+				data.System = v.System
+			}
+			if errPrinter != nil {
+				errPrinter(v.System)
+			}
 		}
+		data.Message = e.Error()
 	}
 	return c.Status(status).JSON(data)
 }
