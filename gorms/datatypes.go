@@ -8,18 +8,36 @@ import (
 
 type List[T any] []T
 
-func (list *List[T]) Scan(value any) error {
+func (s *List[T]) Scan(value any) error {
 	if value == nil {
-		*list = nil
+		*s = nil
 		return nil
 	}
 	v, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("cannot convert %T to []byte", value)
 	}
-	return json.Unmarshal(v, list)
+	return json.Unmarshal(v, s)
 }
 
-func (list List[T]) Value() (driver.Value, error) {
-	return json.Marshal(list)
+func (l List[T]) Value() (driver.Value, error) {
+	return json.Marshal(l)
+}
+
+type JSON map[string]any
+
+func (s *JSON) Scan(value any) error {
+	if value == nil {
+		*s = nil
+		return nil
+	}
+	v, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("cannot convert %T to []byte", value)
+	}
+	return json.Unmarshal(v, s)
+}
+
+func (s *JSON) Value() (driver.Value, error) {
+	return json.Marshal(s)
 }

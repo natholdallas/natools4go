@@ -39,10 +39,13 @@ func PageMap[T, E any](page Page[T], conv func(v T) E) Page[E] {
 	}
 }
 
-func Paginate[T any](db *gorm.DB, pagination Pagination) (Page[T], error) {
+func Paginate[T any](tx *gorm.DB, pagination Pagination) (Page[T], error) {
 	total := int64(0)
 	content := []T{}
-	err := db.Count(&total).Scopes(pagination.Scope).Find(&content).Error
+	err := tx.
+		Count(&total).
+		Scopes(pagination.Scope).
+		Find(&content).Error
 	page := Page[T]{
 		Total:   total,
 		Page:    maths.CeilDivide(total, int64(pagination.Size)),
