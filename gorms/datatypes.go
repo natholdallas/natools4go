@@ -38,6 +38,6 @@ func (s *JSON) Scan(value any) error {
 	return json.Unmarshal(v, s)
 }
 
-func (s *JSON) Value() (driver.Value, error) {
+func (s JSON) Value() (driver.Value, error) {
 	return json.Marshal(s)
 }
