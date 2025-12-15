@@ -146,6 +146,11 @@ func (q *Query[T]) Scopes(funcs ...func(*gorm.DB) *gorm.DB) *Query[T] {
 	return q
 }
 
+func (q *Query[T]) Preload(query string, args ...any) *Query[T] {
+	q.tx = q.tx.Preload(query, args...)
+	return q
+}
+
 func (q *Query[T]) Find(dest any, conds ...any) *Query[T] {
 	q.tx = q.tx.Find(dest, conds...)
 	return q
