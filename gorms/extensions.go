@@ -126,14 +126,25 @@ func Paginate[T any](tx *gorm.DB, pagination Pagination) (Page[T], error) {
 	return page, err
 }
 
-// pagination & sort v2 design
+// custom sql function v2 design
 
 type Query[T any] struct {
 	tx *gorm.DB
 }
 
+// Q used to define [Query]
 func Q[T any](tx *gorm.DB) *Query[T] {
 	return &Query[T]{tx}
+}
+
+// QE used to define [Query], query's generic also will apply to [gorm.DB.Model]
+func QE[T any](tx *gorm.DB) *Query[T] {
+	return &Query[T]{tx: tx.Model(new(T))}
+}
+
+// QM used to define [Query], M generic will apply to [gorm.DB.Model]
+func QM[T, M any](tx *gorm.DB) *Query[T] {
+	return &Query[T]{tx: tx.Model(new(M))}
 }
 
 func (q *Query[T]) Model(value any) *Query[T] {
