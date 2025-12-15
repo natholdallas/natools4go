@@ -187,6 +187,10 @@ func (q *Query[T]) Sorts(sorter Sorters) *Query[T] {
 }
 
 func (q *Query[T]) Paginate(v *Page[T], pagination Pagination) *Query[T] {
+	if q.tx.Statement.Model == nil {
+		model := new(T)
+		q.tx = q.tx.Model(model)
+	}
 	total := int64(0)
 	content := []T{}
 	q.tx = q.tx.Count(&total).Scopes(pagination.Scope).Find(&content)
