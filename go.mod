@@ -3,7 +3,6 @@ module github.com/natholdallas/natools4go
 go 1.24.1
 
 require (
-	github.com/btcsuite/btcutil v1.0.2
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/gofiber/contrib/jwt v1.1.2
