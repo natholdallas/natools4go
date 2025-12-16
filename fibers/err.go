@@ -16,21 +16,21 @@ func (e Error) Error() string {
 }
 
 var (
-	errDevMode bool                  = false
-	errPrinter func(err error)       = nil
-	errHandler func(err error) Error = nil
+	errmode    bool                  = false
+	errptr     func(err error)       = nil
+	errhandler func(err error) Error = nil
 )
 
 func SetErrorHandlerDevMode(s bool) {
-	errDevMode = s
+	errmode = s
 }
 
 func SetErrorHandlerPrinter(s func(err error)) {
-	errPrinter = s
+	errptr = s
 }
 
 func SetErrorHandler(s func(err error) Error) {
-	errHandler = s
+	errhandler = s
 }
 
 // ErrorHandler is optimized error handler impl
@@ -45,11 +45,11 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 		if e.Status != 0 {
 			status = e.Status
 		}
-		if errDevMode {
+		if errmode {
 			data.System = e.System
 		}
-		if errPrinter != nil {
-			errPrinter(e.System)
+		if errptr != nil {
+			errptr(e.System)
 		}
 
 	case *fiber.Error:
@@ -59,21 +59,22 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 		data.Message = e.Message
 
 	default:
-		if errHandler != nil {
-			v := errHandler(e)
+		if errhandler != nil {
+			v := errhandler(e)
 			data.Code = v.Code
 			data.Message = v.Message
 			if v.Status != 0 {
 				status = v.Status
 			}
-			if errDevMode {
+			if errmode {
 				data.System = v.System
 			}
-			if errPrinter != nil {
-				errPrinter(v.System)
+			if errptr != nil {
+				errptr(v.System)
 			}
+		} else {
+			data.Message = e.Error()
 		}
-		data.Message = e.Error()
 	}
 	return c.Status(status).JSON(data)
 }

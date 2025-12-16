@@ -10,11 +10,20 @@ func Map[T, R any](arr []T, f func(T) R) []R {
 	return res
 }
 
-// Some used to check has any data in arr
-func Some() {}
-
 // Filter used to filter arr's data
-func Filter() {}
+func Filter[T any](s []T, f func(T) bool) []T {
+	r := make([]T, 0)
+	for _, v := range s {
+		if f(v) {
+			r = append(r, v)
+		}
+	}
+	return r
+}
 
 // ForEach used to for loop arrs
-func ForEach() {}
+func ForEach[T any](s []T, f func(T)) {
+	for _, v := range s {
+		f(v)
+	}
+}

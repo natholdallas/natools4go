@@ -99,7 +99,7 @@ type Page[T any] struct {
 	Content []T   `json:"content"`
 }
 
-func PageMap[T, E any](page Page[T], conv func(v T) E) Page[E] {
+func PaginateMapping[T, E any](page Page[T], conv func(v T) E) Page[E] {
 	converts := []E{}
 	for i := range page.Content {
 		converts = append(converts, conv(page.Content[i]))
@@ -192,17 +192,7 @@ func (q *Query[T]) Scan(dest any) *Query[T] {
 	return q
 }
 
-func (q *Query[T]) Sort(sorter Sorter) *Query[T] {
-	q.tx = q.tx.Scopes(sorter.Scope)
-	return q
-}
-
-func (q *Query[T]) Sorts(sorter Sorters) *Query[T] {
-	q.tx = q.tx.Scopes(sorter.Scope)
-	return q
-}
-
-func (q *Query[T]) Paginate(v *Page[T], pagination Pagination) *Query[T] {
+func (q *Query[T]) Paginate(pagination Pagination) (Page[T], *gorm.DB) {
 	if q.tx.Statement.Model == nil {
 		model := new(T)
 		q.tx = q.tx.Model(model)
@@ -210,8 +200,10 @@ func (q *Query[T]) Paginate(v *Page[T], pagination Pagination) *Query[T] {
 	total := int64(0)
 	content := []T{}
 	q.tx = q.tx.Count(&total).Scopes(pagination.Scope).Find(&content)
-	v.Total = total
-	v.Content = content
-	v.Page = maths.CeilDivide(total, int64(pagination.Size))
-	return q
+	v := Page[T]{
+		Total:   total,
+		Content: content,
+		Page:    maths.CeilDivide(total, int64(pagination.Size)),
+	}
+	return v, q.tx
 }
