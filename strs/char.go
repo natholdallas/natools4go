@@ -47,3 +47,21 @@ func EnsureNoEndChar(v, char string) string {
 	s, _ := strings.CutSuffix(v, char)
 	return s
 }
+
+func HasPrefix(s string, prefixes ...string) bool {
+	for _, i := range prefixes {
+		if strings.HasPrefix(i, s) {
+			return true
+		}
+	}
+	return false
+}
+
+func HasSuffix(s string, prefixes ...string) bool {
+	for _, i := range prefixes {
+		if strings.HasSuffix(i, s) {
+			return true
+		}
+	}
+	return false
+}

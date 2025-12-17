@@ -104,26 +104,16 @@ func PaginateMapping[T, E any](page Page[T], conv func(v T) E) Page[E] {
 	for i := range page.Content {
 		converts = append(converts, conv(page.Content[i]))
 	}
-	return Page[E]{
-		Total:   page.Total,
-		Page:    page.Page,
-		Content: converts,
-	}
+	return Page[E]{page.Total, page.Page, converts}
 }
 
-func Paginate[T any](tx *gorm.DB, pagination Pagination) (Page[T], error) {
+func Paginate[T any](tx *gorm.DB, pagination Pagination) (Page[T], *gorm.DB) {
 	total := int64(0)
 	content := []T{}
-	err := tx.
-		Count(&total).
-		Scopes(pagination.Scope).
-		Find(&content).Error
-	page := Page[T]{
-		Total:   total,
-		Page:    maths.CeilDivide(total, int64(pagination.Size)),
-		Content: content,
-	}
-	return page, err
+	tx = tx.Count(&total).Scopes(pagination.Scope).Find(&content)
+	page := maths.CeilDivide(total, int64(pagination.Size))
+	v := Page[T]{total, page, content}
+	return v, tx
 }
 
 // custom sql function v2 design
@@ -200,10 +190,7 @@ func (q *Query[T]) Paginate(pagination Pagination) (Page[T], *gorm.DB) {
 	total := int64(0)
 	content := []T{}
 	q.tx = q.tx.Count(&total).Scopes(pagination.Scope).Find(&content)
-	v := Page[T]{
-		Total:   total,
-		Content: content,
-		Page:    maths.CeilDivide(total, int64(pagination.Size)),
-	}
+	page := maths.CeilDivide(total, int64(pagination.Size))
+	v := Page[T]{total, page, content}
 	return v, q.tx
 }
