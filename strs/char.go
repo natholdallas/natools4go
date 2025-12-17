@@ -50,7 +50,7 @@ func EnsureNoEndChar(v, char string) string {
 
 func HasPrefix(s string, prefixes ...string) bool {
 	for _, i := range prefixes {
-		if strings.HasPrefix(i, s) {
+		if strings.HasPrefix(s, i) {
 			return true
 		}
 	}
@@ -59,7 +59,7 @@ func HasPrefix(s string, prefixes ...string) bool {
 
 func HasSuffix(s string, prefixes ...string) bool {
 	for _, i := range prefixes {
-		if strings.HasSuffix(i, s) {
+		if strings.HasSuffix(s, i) {
 			return true
 		}
 	}
