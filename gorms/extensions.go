@@ -1,6 +1,7 @@
 package gorms
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/natholdallas/natools4go/maths"
@@ -137,6 +138,11 @@ func QM[T, M any](tx *gorm.DB) *Query[T] {
 	return &Query[T]{tx: tx.Model(new(M))}
 }
 
+// QT used to define [Query], name and args will apply to [gorm.DB.Table]
+func QT[T any](tx *gorm.DB, name string, args ...any) *Query[T] {
+	return &Query[T]{tx: tx.Table(name, args...)}
+}
+
 func (q *Query[T]) Model(value any) *Query[T] {
 	q.tx = q.tx.Model(value)
 	return q
@@ -179,6 +185,50 @@ func (q *Query[T]) Count(count *int64) *Query[T] {
 
 func (q *Query[T]) Scan(dest any) *Query[T] {
 	q.tx = q.tx.Scan(dest)
+	return q
+}
+
+func (q *Query[T]) Join(query string, args ...any) *Query[T] {
+	q.tx = q.tx.Joins(query, args...)
+	return q
+}
+
+func (q *Query[T]) Assign(attrs ...any) *Query[T] {
+	q.tx = q.tx.Assign(attrs...)
+	return q
+}
+
+func (q *Query[T]) Attrs(attrs ...any) *Query[T] {
+	q.tx = q.tx.Attrs(attrs...)
+	return q
+}
+
+func (q *Query[T]) Order(value any) *Query[T] {
+	q.tx = q.tx.Order(value)
+	return q
+}
+
+func (q *Query[T]) Unscoped() *Query[T] {
+	q.tx = q.tx.Unscoped()
+	return q
+}
+
+func (q *Query[T]) Clauses(conds ...clause.Expression) *Query[T] {
+	q.tx = q.tx.Clauses(conds...)
+	return q
+}
+
+func (q *Query[T]) Transaction(fc func(tx *gorm.DB) error, opts ...*sql.TxOptions) error {
+	return q.tx.Transaction(fc, opts...)
+}
+
+func (q *Query[T]) Begin(opts ...*sql.TxOptions) *Query[T] {
+	q.tx = q.tx.Begin(opts...)
+	return q
+}
+
+func (q *Query[T]) Commit() *Query[T] {
+	q.tx = q.tx.Commit()
 	return q
 }
 
