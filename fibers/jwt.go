@@ -43,6 +43,7 @@ func ParseToken(token, secretKey string) (claims jwt.RegisteredClaims, err error
 	return claims, err
 }
 
+// Jwt is struct design to provide jwt technology
 type Jwt struct {
 	SecretKey  string
 	Middleware fiber.Handler

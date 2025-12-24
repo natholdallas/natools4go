@@ -6,6 +6,8 @@ import (
 	"github.com/natholdallas/natools4go/va"
 )
 
+const StdLogFmt = "${ip} ${time} ${status} - ${method} ${path} ${error}\n"
+
 // IdentityParam is simple embedded struct to get id param in your body struct mixin
 type IdentityParam struct {
 	ID uint `param:"id" json:"-"`

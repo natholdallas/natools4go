@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/natholdallas/natools4go/maths"
@@ -74,26 +75,26 @@ func Time(start, end time.Time) time.Time {
 
 // Deprecated: UniqueChar it will be add more 13 char length
 func UniqueChar(length int) string {
-	var result string
+	var result strings.Builder
 	counter := 0
 	for counter < length {
-		result += string(chars[rand.Intn(len(chars))])
+		result.WriteString(string(chars[rand.Intn(len(chars))]))
 		counter++
 	}
 	now := time.Now().UnixMilli()
 	for _, i := range maths.SplitDigits(now) {
-		result += string(numchars[i])
+		result.WriteString(string(numchars[i]))
 	}
-	return result
+	return result.String()
 }
 
 // Char get random strings
 func Char(length int) string {
-	var result string
+	var result strings.Builder
 	counter := 0
 	for counter < length {
-		result += string(chars[rand.Intn(len(chars))])
+		result.WriteString(string(chars[rand.Intn(len(chars))]))
 		counter++
 	}
-	return result
+	return result.String()
 }
