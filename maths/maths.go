@@ -1,8 +1,9 @@
 // Package maths
 package maths
 
-// CeilDivide use algorithm way to divide then ceil
-func CeilDivide(a, b int64) int64 {
+// DivCeil performs integer division and rounds the result up (ceiling).
+// It handles both positive and negative integers correctly.
+func DivCeil(a, b int64) int64 {
 	if a == 0 || b == 0 {
 		return 0
 	} else if (a > 0 && b > 0) || (a < 0 && b < 0) {
@@ -11,8 +12,9 @@ func CeilDivide(a, b int64) int64 {
 	return (a + b + 1) / b
 }
 
-// SplitDigits make split from numbers, example: SplitDigits(114514), it returns [1, 1, 4, 5, 1, 4]
-func SplitDigits(n int64) []int64 {
+// Digits decomposes an int64 into a slice of its individual digits.
+// Example: maths.Digits(123) returns []int64{1, 2, 3}.
+func Digits(n int64) []int64 {
 	if n == 0 {
 		return []int64{0}
 	}

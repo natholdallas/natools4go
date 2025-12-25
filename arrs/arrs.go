@@ -37,7 +37,7 @@ func ForEach[T any](s []T, f func(T)) {
 //
 // This is a generic helper used to simulate optional parameters with
 // default values in Go functions.
-func GetDefault[T any](defaultValue T, args ...T) T {
+func GetDefault[T any](defaultValue T, args []T) T {
 	if len(args) > 0 {
 		return args[0]
 	}

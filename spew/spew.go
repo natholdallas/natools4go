@@ -1,4 +1,4 @@
-// Package spew used to print anything
+// Package spew provides high-visibility debugging and file inspection tools.
 package spew
 
 import (
@@ -9,44 +9,61 @@ import (
 	"github.com/natholdallas/natools4go/jsons"
 )
 
-// Err used to print error
+// Err prints each non-nil error from the provided slice to standard output.
 func Err(errs ...error) {
-	for i := range errs {
-		if errs[i] != nil {
-			fmt.Println(errs[i])
+	for _, err := range errs {
+		if err != nil {
+			// Using Fprintln to os.Stderr separates errors from normal output
+			fmt.Fprintln(os.Stderr, "[ERROR]", err)
 		}
 	}
 }
 
-// JSON used to jsonify any value then print
+// Dump is a convenience wrapper that calls JSON to print a detailed
+// representation of the provided values.
+func Dump(v ...any) {
+	JSON(v...)
+}
+
+// JSON serializes each value into a formatted JSON string and prints it.
+// Note: Only exported (public) fields will be included in the output.
 func JSON(v ...any) {
 	for _, i := range v {
-		d, _ := jsons.String(i, true)
+		d, err := jsons.String(i, true)
+		if err != nil {
+			// Fallback to Go syntax representation if JSON fails
+			fmt.Printf("[JSON-FAIL] %#v\n", i)
+			continue
+		}
 		fmt.Println(d)
 	}
 }
 
-// Struct used to print any value
+// Struct prints the structural representation of values using the %+v format,
+// which includes field names for structs.
 func Struct(v ...any) {
 	for _, i := range v {
 		fmt.Printf("%+v\n", i)
 	}
 }
 
-// File used to print file content, like cat
+// File reads the file at the specified path and prints its content to standard output,
+// behaving similarly to the Unix 'cat' command.
 func File(path string) {
 	file, err := os.Open(path)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "[FILE-ERR] %s: %v\n", path, err)
+		return // Crucial: stop execution to avoid nil pointer panic
 	}
 	defer file.Close()
 
+	// Using a dedicated buffer can be faster for large files
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fmt.Println(scanner.Text())
 	}
 
 	if err := scanner.Err(); err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "[SCAN-ERR] %s: %v\n", path, err)
 	}
 }

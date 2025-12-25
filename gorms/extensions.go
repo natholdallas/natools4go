@@ -1,7 +1,6 @@
 package gorms
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/natholdallas/natools4go/maths"
@@ -9,23 +8,25 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// GormScope defines a function type compatible with gorm.Scopes.
 type GormScope = func(*gorm.DB) *gorm.DB
 
-// Getter dto transform to database model
+// Getter defines a DTO that can transform itself into a database model.
 type Getter[T any] interface {
 	Get() *T
 }
 
-// Setter use dto sets database model's value
+// Setter defines an interface to update a database model's values using a DTO.
 type Setter[T any] interface {
 	Set(t *T)
 }
 
-// Scoper is [gorm.DB] condition bridge
+// Scoper defines an interface for components that can apply conditions to a gorm.DB instance.
 type Scoper interface {
 	Scope(tx *gorm.DB) *gorm.DB
 }
 
+// SoftModel is a generic base model including ID and standard timestamps with Soft Delete support.
 type SoftModel[T any] struct {
 	ID        T              `gorm:"column:id;primaryKey" json:"id"`
 	CreatedAt time.Time      `gorm:"column:created_at" json:"created_at"`
@@ -33,21 +34,25 @@ type SoftModel[T any] struct {
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"deleted_at"`
 }
 
+// Model is a generic base model including ID and standard timestamps without Soft Delete.
 type Model[T any] struct {
 	ID        T         `gorm:"column:id;primaryKey" json:"id"`
 	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
+// IDModel is a simple generic model containing only a primary key.
 type IDModel[T any] struct {
 	ID T `gorm:"column:id;primaryKey" json:"id"`
 }
 
+// Sorter represents a single column sorting configuration.
 type Sorter struct {
 	Column string `query:"column" json:"column"`
 	Desc   bool   `query:"desc" json:"desc"`
 }
 
+// Scope applies the sorting condition to the GORM transaction.
 func (s *Sorter) Scope(tx *gorm.DB) *gorm.DB {
 	if s.Column != "" {
 		return tx.Order(s.Conv())
@@ -55,14 +60,17 @@ func (s *Sorter) Scope(tx *gorm.DB) *gorm.DB {
 	return tx
 }
 
+// Conv converts the Sorter to a GORM OrderByColumn expression.
 func (s *Sorter) Conv() clause.OrderByColumn {
 	return clause.OrderByColumn{Column: clause.Column{Name: s.Column}, Desc: s.Desc}
 }
 
+// Sorters represents multiple column sorting configurations.
 type Sorters struct {
 	Columns []Sorter `query:"columns" json:"columns"`
 }
 
+// Scope applies multiple sorting conditions to the GORM transaction.
 func (s *Sorters) Scope(tx *gorm.DB) *gorm.DB {
 	if len(s.Columns) > 0 {
 		return tx.Order(clause.OrderBy{Columns: s.Conv()})
@@ -70,36 +78,41 @@ func (s *Sorters) Scope(tx *gorm.DB) *gorm.DB {
 	return tx
 }
 
+// Conv converts Sorters into a slice of GORM OrderByColumn expressions.
 func (s *Sorters) Conv() []clause.OrderByColumn {
-	res := []clause.OrderByColumn{}
+	v := make([]clause.OrderByColumn, 0, len(s.Columns))
 	for i := range s.Columns {
-		res = append(res, s.Columns[i].Conv())
+		v = append(v, s.Columns[i].Conv())
 	}
-	return res
+	return v
 }
 
+// Pagination defines the parameters for database results paging.
 type Pagination struct {
 	Page int `json:"page" query:"page"`
 	Size int `json:"size" query:"size"`
 }
 
+// Scope applies Offset and Limit to the GORM transaction based on pagination settings.
 func (s *Pagination) Scope(db *gorm.DB) *gorm.DB {
 	if s.Page < 1 {
 		s.Page = 1
 	}
-	if s.Size < 1 && s.Size > 100 {
+	if s.Size < 1 || s.Size > 100 {
 		s.Size = 20
 	}
 	offset := (s.Page - 1) * s.Size
 	return db.Offset(offset).Limit(s.Size)
 }
 
+// Page represents a paginated result container.
 type Page[T any] struct {
 	Total   int64 `json:"total"`
 	Page    int64 `json:"page"`
 	Content []T   `json:"content"`
 }
 
+// PaginateMapping transforms the content of a Page from type T to E using a conversion function.
 func PaginateMapping[T, E any](page Page[T], conv func(v T) E) Page[E] {
 	converts := []E{}
 	for i := range page.Content {
@@ -108,139 +121,12 @@ func PaginateMapping[T, E any](page Page[T], conv func(v T) E) Page[E] {
 	return Page[E]{page.Total, page.Page, converts}
 }
 
+// Paginate executes a count query and a find query to return a populated Page container.
 func Paginate[T any](tx *gorm.DB, pagination Pagination) (Page[T], *gorm.DB) {
 	total := int64(0)
 	content := []T{}
 	tx = tx.Count(&total).Scopes(pagination.Scope).Find(&content)
-	page := maths.CeilDivide(total, int64(pagination.Size))
+	page := maths.DivCeil(total, int64(pagination.Size))
 	v := Page[T]{total, page, content}
 	return v, tx
-}
-
-// custom sql function v2 design
-
-type Query[T any] struct {
-	tx *gorm.DB
-}
-
-// Q used to define [Query]
-func Q[T any](tx *gorm.DB) *Query[T] {
-	return &Query[T]{tx}
-}
-
-// QE used to define [Query], query's generic also will apply to [gorm.DB.Model]
-func QE[T any](tx *gorm.DB) *Query[T] {
-	return &Query[T]{tx: tx.Model(new(T))}
-}
-
-// QM used to define [Query], M generic will apply to [gorm.DB.Model]
-func QM[T, M any](tx *gorm.DB) *Query[T] {
-	return &Query[T]{tx: tx.Model(new(M))}
-}
-
-// QT used to define [Query], name and args will apply to [gorm.DB.Table]
-func QT[T any](tx *gorm.DB, name string, args ...any) *Query[T] {
-	return &Query[T]{tx: tx.Table(name, args...)}
-}
-
-func (q *Query[T]) Model(value any) *Query[T] {
-	q.tx = q.tx.Model(value)
-	return q
-}
-
-func (q *Query[T]) Scopes(funcs ...func(*gorm.DB) *gorm.DB) *Query[T] {
-	q.tx = q.tx.Scopes(funcs...)
-	return q
-}
-
-func (q *Query[T]) Preload(query string, args ...any) *Query[T] {
-	q.tx = q.tx.Preload(query, args...)
-	return q
-}
-
-func (q *Query[T]) Find(dest any, conds ...any) *Query[T] {
-	q.tx = q.tx.Find(dest, conds...)
-	return q
-}
-
-func (q *Query[T]) Select(query any, args ...any) *Query[T] {
-	q.tx = q.tx.Select(query, args...)
-	return q
-}
-
-func (q *Query[T]) First(dest any, conds ...any) *Query[T] {
-	q.tx = q.tx.First(dest, conds...)
-	return q
-}
-
-func (q *Query[T]) Where(query any, args ...any) *Query[T] {
-	q.tx = q.tx.Where(query, args...)
-	return q
-}
-
-func (q *Query[T]) Count(count *int64) *Query[T] {
-	q.tx = q.tx.Count(count)
-	return q
-}
-
-func (q *Query[T]) Scan(dest any) *Query[T] {
-	q.tx = q.tx.Scan(dest)
-	return q
-}
-
-func (q *Query[T]) Join(query string, args ...any) *Query[T] {
-	q.tx = q.tx.Joins(query, args...)
-	return q
-}
-
-func (q *Query[T]) Assign(attrs ...any) *Query[T] {
-	q.tx = q.tx.Assign(attrs...)
-	return q
-}
-
-func (q *Query[T]) Attrs(attrs ...any) *Query[T] {
-	q.tx = q.tx.Attrs(attrs...)
-	return q
-}
-
-func (q *Query[T]) Order(value any) *Query[T] {
-	q.tx = q.tx.Order(value)
-	return q
-}
-
-func (q *Query[T]) Unscoped() *Query[T] {
-	q.tx = q.tx.Unscoped()
-	return q
-}
-
-func (q *Query[T]) Clauses(conds ...clause.Expression) *Query[T] {
-	q.tx = q.tx.Clauses(conds...)
-	return q
-}
-
-func (q *Query[T]) Transaction(fc func(tx *gorm.DB) error, opts ...*sql.TxOptions) error {
-	return q.tx.Transaction(fc, opts...)
-}
-
-func (q *Query[T]) Begin(opts ...*sql.TxOptions) *Query[T] {
-	q.tx = q.tx.Begin(opts...)
-	return q
-}
-
-func (q *Query[T]) Commit() *Query[T] {
-	q.tx = q.tx.Commit()
-	return q
-}
-
-func (q *Query[T]) Paginate(pagination Pagination) (Page[T], *gorm.DB) {
-	if q.tx.Statement.Model == nil {
-		model := new(T)
-		q.tx = q.tx.Model(model)
-	}
-	total := int64(0)
-	content := []T{}
-	q.tx = q.tx.Count(&total).Scopes(pagination.Scope).Find(&content)
-	page := maths.CeilDivide(total, int64(pagination.Size))
-	v := Page[T]{total, page, content}
-	return v, q.tx
 }

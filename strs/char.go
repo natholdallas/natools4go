@@ -10,6 +10,7 @@ const (
 	Slash  = "/"
 	Comma  = ","
 	Strike = "-"
+	Space  = " "
 )
 
 // Wrap ensures the string 'v' starts and ends with 'char'.
@@ -54,8 +55,8 @@ func TrimEnd(v, char string) string {
 	return s
 }
 
-// HasAnyPrefix returns true if the string 's' starts with any of the provided 'prefixes'.
-func HasAnyPrefix(s string, prefixes ...string) bool {
+// AnyPrefix returns true if the string 's' starts with any of the provided 'prefixes'.
+func AnyPrefix(s string, prefixes ...string) bool {
 	for _, p := range prefixes {
 		if strings.HasPrefix(s, p) {
 			return true
@@ -64,8 +65,8 @@ func HasAnyPrefix(s string, prefixes ...string) bool {
 	return false
 }
 
-// HasAnySuffix returns true if the string 's' ends with any of the provided 'suffixes'.
-func HasAnySuffix(s string, suffixes ...string) bool {
+// AnySuffix returns true if the string 's' ends with any of the provided 'suffixes'.
+func AnySuffix(s string, suffixes ...string) bool {
 	for _, sx := range suffixes {
 		if strings.HasSuffix(s, sx) {
 			return true

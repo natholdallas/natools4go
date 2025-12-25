@@ -6,91 +6,112 @@ import (
 )
 
 var (
-	errmode    bool                   = false
-	errptr     func(err error)        = nil
-	errhandler func(err error) *Error = nil
+	debugMode    bool                   = false
+	errLogger    func(err error)        = nil
+	errConverter func(err error) *Error = nil
 )
 
-func SetErrorHandlerDevMode(s bool) {
-	errmode = s
+// SetDebugMode enables or disables the exposure of system-level errors in the response.
+func SetDebugMode(enabled bool) {
+	debugMode = enabled
 }
 
-func SetErrorHandlerPrinter(s func(err error)) {
-	errptr = s
+// SetErrorLogger registers a custom function to log internal system errors.
+// error never be nil
+func SetErrorLogger(fn func(err error)) {
+	errLogger = fn
 }
 
-func SetErrorHandler(s func(err error) *Error) {
-	errhandler = s
+// SetErrorConverter registers a function to transform generic errors into the custom Error type.
+func SetErrorConverter(fn func(err error) *Error) {
+	errConverter = fn
 }
 
 type Error struct {
-	Status  int    `json:"-"`                 // http status code
-	Code    string `json:"code,omitempty"`    // business status code (optional)
-	Message string `json:"message,omitempty"` // message (optional)
-	System  error  `json:"system,omitempty"`  // system error (optional)
+	Status  int    `json:"-"`                 // HTTP status code (not shown in body)
+	Code    string `json:"code,omitempty"`    // Application-specific error code
+	Message string `json:"message,omitempty"` // Human-readable error message
+	System  any    `json:"system,omitempty"`  // Raw system error (only shown in debug mode)
 }
 
 func (e Error) Error() string {
 	return e.Message
 }
 
+// Err creates a new custom Error instance.
 func Err(status int, code, message string, system ...error) *Error {
-	sys := arrs.GetDefault(nil, system...)
-	return &Error{status, code, message, sys}
+	return &Error{status, code, message, arrs.GetDefault(nil, system)}
 }
 
+// Shortcut functions for common HTTP status codes.
+
 func BadRequest(code, message string, system ...error) *Error {
-	sys := arrs.GetDefault(nil, system...)
-	return &Error{fiber.StatusBadRequest, code, message, sys}
+	return &Error{fiber.StatusBadRequest, code, message, arrs.GetDefault(nil, system)}
 }
 
 func Unauthorized(code, message string, system ...error) *Error {
-	sys := arrs.GetDefault(nil, system...)
-	return &Error{fiber.StatusUnauthorized, code, message, sys}
+	return &Error{fiber.StatusUnauthorized, code, message, arrs.GetDefault(nil, system)}
 }
 
 func Forbidden(code, message string, system ...error) *Error {
-	sys := arrs.GetDefault(nil, system...)
-	return &Error{fiber.StatusForbidden, code, message, sys}
+	return &Error{fiber.StatusForbidden, code, message, arrs.GetDefault(nil, system)}
 }
 
 func NotFound(code, message string, system ...error) *Error {
-	sys := arrs.GetDefault(nil, system...)
-	return &Error{fiber.StatusNotFound, code, message, sys}
+	return &Error{fiber.StatusNotFound, code, message, arrs.GetDefault(nil, system)}
+}
+
+func InternalServerError(code, message string, system ...error) *Error {
+	return &Error{fiber.StatusInternalServerError, code, message, arrs.GetDefault(nil, system)}
 }
 
 // ErrorHandler is optimized error handler impl
 func ErrorHandler(c *fiber.Ctx, err error) error {
-	status := fiber.StatusBadRequest
-	data := Error{}
+	// Default status and structure
+	status := fiber.StatusInternalServerError
+	resp := Error{}
 
-	if errhandler != nil {
-		err = errhandler(err)
+	// Optional conversion: transform raw error into *Error
+	if errConverter != nil {
+		if converted := errConverter(err); converted != nil {
+			err = converted
+		}
 	}
 
+	// Type switch to handle different error categories
 	switch e := err.(type) {
 	case *Error:
 		if e.Status != 0 {
 			status = e.Status
 		}
-		data.Code = e.Code
-		data.Message = e.Message
-		if errmode {
-			data.System = e.System
-		}
-		if errptr != nil {
-			errptr(e.System)
+		resp.Code = e.Code
+		resp.Message = e.Message
+
+		// Handle system error visibility and logging
+		if e.System != nil {
+			if debugMode {
+				// Convert error to string for reliable JSON serialization
+				if sysErr, ok := e.System.(error); ok {
+					resp.System = sysErr.Error()
+				} else {
+					resp.System = e.System
+				}
+			}
+			if errLogger != nil {
+				if sysErr, ok := e.System.(error); ok {
+					errLogger(sysErr)
+				}
+			}
 		}
 
 	case *fiber.Error:
 		if e.Code != 0 {
 			status = e.Code
 		}
-		data.Message = e.Message
+		resp.Message = e.Message
 
 	default:
-		data.Message = e.Error()
+		resp.Message = err.Error()
 	}
-
-	return c.Status(status).JSON(data)
+	return c.Status(status).JSON(resp)
 }

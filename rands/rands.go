@@ -8,93 +8,86 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/natholdallas/natools4go/maths"
 )
 
-var (
-	chars    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	numchars = "aBcDeFgHiJ" // replace 0...9 char
-)
+var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
-// Split random numbers, the number could be zero
-func Split(number, parts int) []int {
+// Distribute splits a number into 'parts' random integers that sum up to 'number'.
+// It uses the "Dividers" algorithm (Bars and Stars).
+func Distribute(total, parts int) []int {
 	if parts <= 0 {
 		return []int{}
 	}
 	if parts == 1 {
-		return []int{number}
+		return []int{total}
 	}
-
-	// sorter dividers
+	// Generate random split points
 	dividers := make([]int, parts-1)
-	for i := range parts - 1 {
-		dividers[i] = rand.Intn(number-1) + 1
+	for i := 0; i < parts-1; i++ {
+		dividers[i] = rand.Intn(total + 1) // +1 allows zero values
 	}
 	sort.Ints(dividers)
 
-	// collect result
 	result := make([]int, parts)
 	prev := 0
 	for i, d := range dividers {
 		result[i] = d - prev
 		prev = d
 	}
-	result[parts-1] = number - prev
+	result[parts-1] = total - prev
 	return result
 }
 
-// SplitNonZero random split numbers, but filter zero value, result length != parts
-// TODO: need optimized
-func SplitNonZero(number, parts int) []int {
-	numbers := Split(number, parts)
-	result := []int{}
-	for i := range numbers {
-		if numbers[i] == 0 {
-			continue
-		}
-		result = append(result, numbers[i])
+// DistributeStrict splits a number into 'parts' random integers where each part is >= 1.
+// It ensures the resulting slice length is always equal to 'parts'.
+func DistributeStrict(total, parts int) []int {
+	if parts <= 0 || total < parts {
+		return []int{}
 	}
-	return result
+
+	// Implementation trick: distribute (total - parts), then add 1 to each part.
+	// This ensures no zero values while maintaining the sum.
+	v := Distribute(total-parts, parts)
+	for i := range v {
+		v[i]++
+	}
+	return v
 }
 
-// Digits fisher yate algorithm to get bitint's number, must length <= num
+// Digits extracts 'length' random digits from a large number after shuffling.
 func Digits(num *big.Int, length int) (int, error) {
 	digits := []byte(num.String())
 	FisherYateShuffle(digits)
 	return strconv.Atoi(string(digits[:length]))
 }
 
-// Time generate random time [start~end]
-func Time(start, end time.Time) time.Time {
+// BetweenTime returns a random time between the start and end range.
+func BetweenTime(start, end time.Time) time.Time {
 	min := start.UnixNano()
 	max := end.UnixNano()
-	nano := min + rand.Int63n(max-min)
-	return time.Unix(0, nano)
+	if min >= max {
+		return start
+	}
+	delta := max - min
+	return time.Unix(0, min+rand.Int63n(delta))
 }
 
-// Deprecated: UniqueChar it will be add more 13 char length
-func UniqueChar(length int) string {
-	var result strings.Builder
-	counter := 0
-	for counter < length {
-		result.WriteString(string(chars[rand.Intn(len(chars))]))
-		counter++
-	}
-	now := time.Now().UnixMilli()
-	for _, i := range maths.SplitDigits(now) {
-		result.WriteString(string(numchars[i]))
-	}
-	return result.String()
-}
-
-// Char get random strings
+// Char generates a random alphanumeric string of the specified length.
+// It uses pre-allocation and direct byte writing for optimal performance.
 func Char(length int) string {
-	var result strings.Builder
-	counter := 0
-	for counter < length {
-		result.WriteString(string(chars[rand.Intn(len(chars))]))
-		counter++
+	var b strings.Builder
+	b.Grow(length) // Pre-allocate memory to avoid multiple reallocations
+	for range length {
+		b.WriteByte(alphabet[rand.Intn(len(alphabet))]) // Directly write the byte to avoid string(char) conversion cost
 	}
-	return result.String()
+	return b.String()
+}
+
+// Pick returns a random element from a slice of any type.
+func Pick[T any](list []T) T {
+	if len(list) == 0 {
+		var zero T
+		return zero
+	}
+	return list[rand.Intn(len(list))]
 }

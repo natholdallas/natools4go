@@ -8,8 +8,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Jwtware is simply middleware func
-// example: var IsLogin = Jwtware("xxx")
+// Jwtware initializes a Gofiber middleware to protect routes using JWT.
+// It uses the standard HS256 signing method and RegisteredClaims.
 func Jwtware(secretKey string) fiber.Handler {
 	return jwtware.New(jwtware.Config{
 		SigningKey:   jwtware.SigningKey{Key: []byte(secretKey)},
@@ -18,12 +18,14 @@ func Jwtware(secretKey string) fiber.Handler {
 	})
 }
 
-// JwtErrorHandler if you only used error handler
+// JwtErrorHandler is a specialized error handler for JWT middleware.
+// It captures authentication errors and returns a 401 Unauthorized status.
 func JwtErrorHandler(c *fiber.Ctx, err error) error {
 	return fiber.NewError(fiber.StatusUnauthorized, err.Error())
 }
 
-// GenToken can generate token by secretKey
+// GenToken generates a signed JWT string for a specific subject ID.
+// The default expiration (if not provided) is 720 hours (30 days).
 func GenToken(ID string, secretKey string, endtime ...time.Duration) (string, error) {
 	claims := jwt.RegisteredClaims{ID: ID}
 	if len(endtime) > 0 {
@@ -35,7 +37,8 @@ func GenToken(ID string, secretKey string, endtime ...time.Duration) (string, er
 	return token.SignedString([]byte(secretKey))
 }
 
-// ParseToken can parse to [jwt.RegisteredClaims] by token and secretKey
+// ParseToken decodes and validates a JWT string against the provided secret key.
+// It returns the [jwt.RegisteredClaims] if successful.
 func ParseToken(token, secretKey string) (claims jwt.RegisteredClaims, err error) {
 	_, err = jwt.ParseWithClaims(token, &claims, func(token *jwt.Token) (any, error) {
 		return []byte(secretKey), nil
@@ -43,28 +46,39 @@ func ParseToken(token, secretKey string) (claims jwt.RegisteredClaims, err error
 	return claims, err
 }
 
-// Jwt is struct design to provide jwt technology
+// Jwt represents a managed JWT environment, coupling the secret key with its middleware.
 type Jwt struct {
 	SecretKey  string
 	Middleware fiber.Handler
 }
 
+// NewJwt initializes a new Jwt manager with the given secret key.
 func NewJwt(secretKey string) Jwt {
 	return Jwt{secretKey, Jwtware(secretKey)}
 }
 
-// GenToken can generate token by secretKey
+// GenToken is a method wrapper for generating a token using the Jwt instance's secret key.
 func (j *Jwt) GenToken(ID string, endtime ...time.Duration) (string, error) {
 	return GenToken(ID, j.SecretKey, endtime...)
 }
 
-// ParseToken get [jwt.RegisteredClaims] by token and secretKey
+// ParseToken is a method wrapper for parsing a token using the Jwt instance's secret key.
 func (j *Jwt) ParseToken(token string) (jwt.RegisteredClaims, error) {
 	return ParseToken(token, j.SecretKey)
 }
 
-// Claims get [jwt.RegisteredClaims] by [fiber.Ctx]
+// Claims retrieves the JWT RegisteredClaims from the Fiber context.
+// This should be called on routes protected by the Jwt instance's middleware.
 func (j *Jwt) Claims(c *fiber.Ctx) *jwt.RegisteredClaims {
-	v := c.Locals("user").(*jwt.Token).Claims.(*jwt.RegisteredClaims)
-	return v
+	usr := c.Locals("user")
+	if usr == nil {
+		return nil
+	}
+	// Attempt to cast the context local value to the expected jwt.Token
+	if token, ok := usr.(*jwt.Token); ok {
+		if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok {
+			return claims
+		}
+	}
+	return nil
 }

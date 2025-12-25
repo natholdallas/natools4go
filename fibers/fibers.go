@@ -6,14 +6,17 @@ import (
 	"github.com/natholdallas/natools4go/va"
 )
 
+// StdLogFmt defines a standard format string for Fiber's logger middleware.
 const StdLogFmt = "${ip} ${time} ${status} - ${method} ${path} ${error}\n"
 
-// IdentityParam is simple embedded struct to get id param in your body struct mixin
+// IdentityParam is a mixin struct for embedding common ID parameters from URIs.
+// Usage: type UserReq struct { fibers.IdentityParam; Name string `json:"name"` }
 type IdentityParam struct {
 	ID uint `param:"id" json:"-"`
 }
 
-// FormData to get any source data as data, sort by [fiber.BodyParser]
+// FormData binds data from all possible sources: URI parameters, Query strings, and Request Body.
+// It prioritizes BodyParser as the final override.
 func FormData[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.ParamsParser(&v); err != nil {
 		return
@@ -28,13 +31,15 @@ func FormData[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// CookieParser is used to bind cookies to a struct
+// --- Cookie Parsers ---
+
+// CookieParser binds request cookies to the provided struct type T.
 func CookieParser[T any](c *fiber.Ctx) (v T, err error) {
 	err = c.CookieParser(&v)
 	return
 }
 
-// CookieVarser is used to bind cookies to a struct then verify
+// CookieVarser binds request cookies to struct T and performs validation.
 func CookieVarser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.CookieParser(&v); err != nil {
 		return
@@ -43,13 +48,15 @@ func CookieVarser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// ReqHeaderParser binds the request header strings to a struct.
+// --- Header Parsers ---
+
+// ReqHeaderParser binds request headers to the provided struct type T.
 func ReqHeaderParser[T any](c *fiber.Ctx) (v T, err error) {
 	err = c.ReqHeaderParser(&v)
 	return
 }
 
-// ReqHeaderVarser binds the request header strings to a struct then verify.
+// ReqHeaderVarser binds request headers to struct T and performs validation.
 func ReqHeaderVarser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.ReqHeaderParser(&v); err != nil {
 		return
@@ -58,7 +65,7 @@ func ReqHeaderVarser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// BodyParser binds the request body to a struct.
+// BodyParser binds the request body (JSON, XML, Form, etc.) to struct T.
 // It supports decoding the following content types based on the Content-Type header:
 // application/json, application/xml, application/x-www-form-urlencoded, multipart/form-data
 // All JSON extenstion mime types are supported (eg. application/problem+json)
@@ -68,7 +75,7 @@ func BodyParser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// BodyVarser binds the request body to a struct then verify.
+// BodyVarser binds the request body to struct T and performs validation.
 // It supports decoding the following content types based on the Content-Type header:
 // application/json, application/xml, application/x-www-form-urlencoded, multipart/form-data
 // All JSON extenstion mime types are supported (eg. application/problem+json)
@@ -81,8 +88,10 @@ func BodyVarser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// RestParser to get params and body
-// be commonly used to [POST, PUT, DELETE, PATCH]
+// --- RESTful Parsers (Params + Body) ---
+
+// RestParser binds both URI parameters and the request body to struct T.
+// Ideal for POST, PUT, and PATCH requests.
 func RestParser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.ParamsParser(&v); err != nil {
 		return
@@ -91,8 +100,7 @@ func RestParser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// RestVarser to get params and body and verify
-// be commonly used to [POST, PUT, DELETE, PATCH]
+// RestVarser binds URI parameters and the request body to struct T, then performs validation.
 func RestVarser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.ParamsParser(&v); err != nil {
 		return
@@ -104,13 +112,15 @@ func RestVarser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// QueryParser to get queries, be commonly used to [GET]
+// --- Query Parsers ---
+
+// QueryParser binds URL query parameters to struct T. Usually used for GET requests.
 func QueryParser[T any](c *fiber.Ctx) (v T, err error) {
 	err = c.QueryParser(&v)
 	return
 }
 
-// QueryVarser to get queries and verify, be commonly used to [GET]
+// QueryVarser binds URL query parameters to struct T and performs validation.
 func QueryVarser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.QueryParser(&v); err != nil {
 		return
@@ -119,13 +129,15 @@ func QueryVarser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// ParamsParser to get queries, be commonly used to [GET]
+// --- URI Param Parsers ---
+
+// ParamsParser binds URI route parameters to struct T.
 func ParamsParser[T any](c *fiber.Ctx) (v T, err error) {
-	err = c.QueryParser(&v)
+	err = c.ParamsParser(&v)
 	return
 }
 
-// ParamsVarser to get queries and verify
+// ParamsVarser binds URI route parameters to struct T and performs validation.
 func ParamsVarser[T any](c *fiber.Ctx) (v T, err error) {
 	if err = c.ParamsParser(&v); err != nil {
 		return
@@ -134,20 +146,20 @@ func ParamsVarser[T any](c *fiber.Ctx) (v T, err error) {
 	return
 }
 
-// Status only use one line
+// --- Response Helpers ---
+
+// Status is a shorthand to set the HTTP response status code.
 func Status(c *fiber.Ctx, status int) error {
 	c.Status(status)
 	return nil
 }
 
-// JSON to sending json body and status
+// JSON sends a JSON response with the specified HTTP status code.
 func JSON(c *fiber.Ctx, status int, data any) error {
-	c.Status(status)
-	return c.JSON(data)
+	return c.Status(status).JSON(data)
 }
 
-// SendString to sending string and status
+// SendString sends a plain text response with the specified HTTP status code.
 func SendString(c *fiber.Ctx, status int, str string) error {
-	c.Status(status)
-	return c.SendString(str)
+	return c.Status(status).SendString(str)
 }

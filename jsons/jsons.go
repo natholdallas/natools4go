@@ -3,34 +3,42 @@ package jsons
 
 import (
 	"encoding/json"
+
+	"github.com/natholdallas/natools4go/arrs"
 )
 
+// Unmarshal parses the JSON-encoded data and stores the result in a new value of type T.
+// It leverages Go generics to return the specific type directly along with any error.
 func Unmarshal[T any](bytes []byte) (T, error) {
-	var result T
-	err := json.Unmarshal(bytes, &result)
-	return result, err
+	var v T
+	err := json.Unmarshal(bytes, &v)
+	return v, err
 }
 
+// Marshal returns the JSON encoding of v.
+// If the optional pretty parameter is set to true, it returns indented JSON using tabs.
 func Marshal(v any, pretty ...bool) ([]byte, error) {
-	if len(pretty) > 0 {
-		if pretty[0] {
-			return json.MarshalIndent(v, "", "\t")
-		}
+	p := arrs.GetDefault(false, pretty)
+	if p {
+		return json.MarshalIndent(v, "", "\t")
 	}
 	return json.Marshal(v)
 }
 
+// String returns the JSON encoding of data as a string.
+// If the optional pretty parameter is true, it returns indented JSON using two spaces.
 func String(data any, pretty ...bool) (string, error) {
-	if len(pretty) > 0 {
-		if pretty[0] {
-			d, err := json.MarshalIndent(data, "", "  ")
-			return string(d), err
-		}
+	p := arrs.GetDefault(false, pretty)
+	if p {
+		d, err := json.MarshalIndent(data, "", "  ")
+		return string(d), err
 	}
 	d, err := json.Marshal(data)
 	return string(d), err
 }
 
+// Set traverses a nested map structure using the provided keys and assigns the value to the final key.
+// Note: This function assumes all intermediate levels are already existing maps.
 func Set(source map[string]any, value any, keys ...string) {
 	src := source
 	for i, key := range keys {
@@ -43,6 +51,9 @@ func Set(source map[string]any, value any, keys ...string) {
 	}
 }
 
+// Get traverses a nested map structure by key sequence and returns the map at the final key.
+// Warning: This function uses a direct type assertion which will cause a panic if a key
+// does not exist or if the value is not a map[string]any.
 func Get(source map[string]any, keys ...string) map[string]any {
 	src := source
 	for _, key := range keys {
