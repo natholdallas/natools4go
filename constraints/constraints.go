@@ -20,8 +20,3 @@ type Integer interface {
 type Float interface {
 	~float32 | ~float64
 }
-
-// type JSONValue interface {
-// 	~float64 | ~string | ~map[string]any | ~[]any
-// }
-

@@ -68,7 +68,7 @@ func InternalServerError(code, message string, system ...error) *Error {
 // ErrorHandler is optimized error handler impl
 func ErrorHandler(c *fiber.Ctx, err error) error {
 	// Default status and structure
-	status := fiber.StatusInternalServerError
+	status := fiber.StatusBadRequest
 	resp := Error{}
 
 	// Optional conversion: transform raw error into *Error

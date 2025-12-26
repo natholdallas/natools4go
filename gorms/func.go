@@ -30,14 +30,23 @@ func PluckStrings[T any](tx *gorm.DB, column string) ([]string, error) {
 }
 
 // FindByID retrieves a single record by its primary key.
-// It returns a boolean 'found' to simplify error handling for "Record Not Found".
-func FindByID[T any](tx *gorm.DB, id any) (*T, bool) {
+func FindByID[T any](tx *gorm.DB, id any) (T, error) {
 	var dest T
 	err := tx.First(&dest, id).Error
 	if err != nil {
-		return nil, false
+		return dest, err
 	}
-	return &dest, true
+	return dest, nil
+}
+
+// FindAll list all record
+func FindAll[T any](tx *gorm.DB) ([]T, error) {
+	dest := []T{}
+	err := tx.Find(&dest).Error
+	if err != nil {
+		return dest, err
+	}
+	return dest, nil
 }
 
 // DeleteByIDs performs a batch delete for the given primary keys.
