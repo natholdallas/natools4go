@@ -28,17 +28,17 @@ func PluckStrings[T any](tx *gorm.DB, column string) ([]string, error) {
 	return v, err
 }
 
-// FindByID retrieves a single record by its primary key.
-func FindByID[T any](tx *gorm.DB, id any) (T, error) {
+// First retrieves a single record by its primary key.
+func First[T any](tx *gorm.DB, conds ...any) (T, error) {
 	var v T
-	err := tx.First(&v, id).Error
+	err := tx.First(&v, conds...).Error
 	return v, err
 }
 
 // Find list all record
-func Find[T any](tx *gorm.DB) ([]T, error) {
+func Find[T any](tx *gorm.DB, conds ...any) ([]T, error) {
 	v := []T{}
-	err := tx.Find(&v).Error
+	err := tx.Find(&v, conds...).Error
 	return v, err
 }
 
@@ -59,6 +59,6 @@ func UpdatesByID[T any](tx *gorm.DB, id, values any) error {
 }
 
 // Delete performs a batch delete for the given primary keys.
-func Delete[T any](tx *gorm.DB, ids ...any) error {
-	return tx.Delete(new(T), ids).Error
+func Delete[T any](tx *gorm.DB, conds ...any) error {
+	return tx.Delete(new(T), conds...).Error
 }
