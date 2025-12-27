@@ -35,16 +35,16 @@ func FindByID[T any](tx *gorm.DB, id any) (T, error) {
 	return v, err
 }
 
-// FindAll list all record
-func FindAll[T any](tx *gorm.DB) ([]T, error) {
+// Find list all record
+func Find[T any](tx *gorm.DB) ([]T, error) {
 	v := []T{}
 	err := tx.Find(&v).Error
 	return v, err
 }
 
-// DeleteByID performs a batch delete for the given primary keys.
-func DeleteByID[T any](tx *gorm.DB, ids ...any) error {
-	return tx.Delete(new(T), ids).Error
+// Save performs an Upsert (Update or Insert) based on the primary key's presence.
+func Save[T any](tx *gorm.DB, v *T) error {
+	return tx.Save(v).Error
 }
 
 // Create inserts a new record into the database.
@@ -58,7 +58,7 @@ func UpdatesByID[T any](tx *gorm.DB, id, values any) error {
 	return tx.Model(new(T)).Where("id = ?", id).Updates(values).Error
 }
 
-// Save performs an Upsert (Update or Insert) based on the primary key's presence.
-func Save[T any](tx *gorm.DB, v *T) error {
-	return tx.Save(v).Error
+// Delete performs a batch delete for the given primary keys.
+func Delete[T any](tx *gorm.DB, ids ...any) error {
+	return tx.Delete(new(T), ids).Error
 }
