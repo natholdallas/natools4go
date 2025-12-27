@@ -1,4 +1,4 @@
-package gorms
+package orms
 
 import (
 	"gorm.io/gorm"
@@ -17,8 +17,7 @@ func Count[T any](tx *gorm.DB) int64 {
 func Exists[T any](tx *gorm.DB) bool {
 	var n int
 	// We use RowsAffected which is faster than Count for existence checks.
-	result := tx.Model(new(T)).Select("1").Limit(1).Scan(&n)
-	return result.RowsAffected > 0
+	return tx.Model(new(T)).Select("1").Limit(1).Scan(&n).RowsAffected > 0
 }
 
 // PluckStrings extracts a single string column into a slice.
@@ -31,50 +30,35 @@ func PluckStrings[T any](tx *gorm.DB, column string) ([]string, error) {
 
 // FindByID retrieves a single record by its primary key.
 func FindByID[T any](tx *gorm.DB, id any) (T, error) {
-	var dest T
-	err := tx.First(&dest, id).Error
-	if err != nil {
-		return dest, err
-	}
-	return dest, nil
+	var v T
+	err := tx.First(&v, id).Error
+	return v, err
 }
 
 // FindAll list all record
 func FindAll[T any](tx *gorm.DB) ([]T, error) {
-	dest := []T{}
-	err := tx.Find(&dest).Error
-	if err != nil {
-		return dest, err
-	}
-	return dest, nil
+	v := []T{}
+	err := tx.Find(&v).Error
+	return v, err
 }
 
-// DeleteByIDs performs a batch delete for the given primary keys.
-func DeleteByIDs[T any](tx *gorm.DB, ids []any) error {
+// DeleteByID performs a batch delete for the given primary keys.
+func DeleteByID[T any](tx *gorm.DB, ids ...any) error {
 	return tx.Delete(new(T), ids).Error
 }
 
 // Create inserts a new record into the database.
-func Create[T any](tx *gorm.DB) (T, error) {
-	v := new(T)
-	err := tx.Create(v).Error
-	return *v, err
+func Create[T any](tx *gorm.DB, v *T) error {
+	return tx.Create(v).Error
 }
 
-// UpdateByID updates a specific record by its primary key using a map or struct.
+// UpdatesByID updates a specific record by its primary key using a map or struct.
 // It is recommended to use a map for updates to include zero-value fields (like 0, false, "").
-func UpdateByID[T any](tx *gorm.DB, id, values any) error {
+func UpdatesByID[T any](tx *gorm.DB, id, values any) error {
 	return tx.Model(new(T)).Where("id = ?", id).Updates(values).Error
 }
 
 // Save performs an Upsert (Update or Insert) based on the primary key's presence.
-func Save[T any](tx *gorm.DB) (T, error) {
-	v := new(T)
-	err := tx.Save(v).Error
-	return *v, err
-}
-
-// Updates applies batch updates to records matching the conditions in tx.
-func Updates[T any](tx *gorm.DB, values any) error {
-	return tx.Model(new(T)).Updates(values).Error
+func Save[T any](tx *gorm.DB, v *T) error {
+	return tx.Save(v).Error
 }

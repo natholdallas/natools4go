@@ -1,4 +1,4 @@
-package gorms
+package orms
 
 import (
 	"database/sql/driver"

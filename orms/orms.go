@@ -1,6 +1,6 @@
-// Package gorms provides advanced utilities for GORM, including generic models,
+// Package orms provides advanced utilities for GORM, including generic models,
 // automated pagination, dynamic sorting, and a fluent query builder.
-package gorms
+package orms
 
 import (
 	"database/sql"
