@@ -52,6 +52,11 @@ func Create[T any](tx *gorm.DB, v *T) error {
 	return tx.Create(v).Error
 }
 
+// UpdateByID update a specific record by its primary key using column and value
+func UpdateByID[T any](tx *gorm.DB, id any, column string, value any) error {
+	return tx.Model(new(T)).Where("id = ?", id).Update(column, value).Error
+}
+
 // UpdatesByID updates a specific record by its primary key using a map or struct.
 // It is recommended to use a map for updates to include zero-value fields (like 0, false, "").
 func UpdatesByID[T any](tx *gorm.DB, id, values any) error {

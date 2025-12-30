@@ -15,6 +15,12 @@ func Unmarshal[T any](bytes []byte) (T, error) {
 	return v, err
 }
 
+func IUnmarshal[T any](bytes []byte) T {
+	var v T
+	json.Unmarshal(bytes, &v)
+	return v
+}
+
 // Marshal returns the JSON encoding of v.
 // If the optional pretty parameter is set to true, it returns indented JSON using tabs.
 func Marshal(v any, pretty ...bool) ([]byte, error) {
@@ -23,6 +29,16 @@ func Marshal(v any, pretty ...bool) ([]byte, error) {
 		return json.MarshalIndent(v, "", "\t")
 	}
 	return json.Marshal(v)
+}
+
+func IMarshal(v any, pretty ...bool) []byte {
+	p := arrs.GetDefault(false, pretty)
+	if p {
+		value, _ := json.MarshalIndent(v, "", "\t")
+		return value
+	}
+	value, _ := json.Marshal(v)
+	return value
 }
 
 // String returns the JSON encoding of data as a string.
@@ -35,6 +51,16 @@ func String(data any, pretty ...bool) (string, error) {
 	}
 	d, err := json.Marshal(data)
 	return string(d), err
+}
+
+func IString(data any, pretty ...bool) string {
+	p := arrs.GetDefault(false, pretty)
+	if p {
+		d, _ := json.MarshalIndent(data, "", "  ")
+		return string(d)
+	}
+	d, _ := json.Marshal(data)
+	return string(d)
 }
 
 // Set traverses a nested map structure using the provided keys and assigns the value to the final key.
