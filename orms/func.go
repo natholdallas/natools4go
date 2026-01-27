@@ -35,6 +35,12 @@ func First[T any](tx *gorm.DB, conds ...any) (T, error) {
 	return v, err
 }
 
+func IFirst[T any](tx *gorm.DB, conds ...any) T {
+	var v T
+	tx.First(&v, conds...)
+	return v
+}
+
 // Find list all record
 func Find[T any](tx *gorm.DB, conds ...any) ([]T, error) {
 	v := []T{}

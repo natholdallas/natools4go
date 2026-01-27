@@ -1,4 +1,4 @@
-package fibers
+package fext
 
 import (
 	"fmt"

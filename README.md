@@ -12,7 +12,7 @@ go get -u github.com/natholdallas/natools4go
 | ask         | Interactive Prompts   | A utility for handling interactive command-line                                                     |
 | concur      | Concurrency Control   | Wraps Goroutine pools, Context control, or thread-safe patterns.                                    |
 | constraints | Type Constraints      | Defines interface constraints for Go generics (Type parameters).                                    |
-| fibers      | Fiber Framework Logic | Fiber-based logic including JWT, Cache, and Request Header handling.                                |
+| fext        | Fiber Framework Logic | Fiber-based logic including JWT, Cache, and Request Header handling.                                |
 | gorms       | GORM Wrapper          | Handles GORM initialization, transactions, and common CRUD logic.                                   |
 | jsons       | JSON Processing       | Utilities for efficient JSON parsing, serialization, or dynamic maps.                               |
 | maths       | Mathematics           | Provides algorithm implementations, high-precision math, or statistics.                             |
@@ -30,7 +30,7 @@ go get -u github.com/natholdallas/natools4go
 | ask         | 命令行交互工具     | 用于命令行交互，类似于获取用户输入确认或选择                                   |
 | concur      | 并发控制           | 封装协程池、Context 控制或并发安全的数据处理。                                 |
 | constraints | 类型约束           | 定义 Go 泛型所需的 Interface 约束。                                            |
-| fibers      | Fiber Web 框架扩展 | 包含基于 Fiber 的 JWT 鉴权、缓存、Header 处理等中间件或逻辑。                  |
+| fext        | Fiber Web 框架扩展 | 包含基于 Fiber 的 JWT 鉴权、缓存、Header 处理等中间件或逻辑。                  |
 | gorms       | GORM 数据库封装    | 封装 GORM 初始化、事务处理及通用 CRUD 逻辑。                                   |
 | jsons       | JSON 处理          | 封装 JSON 的高效解析、动态结构处理或序列化工具。                               |
 | maths       | 数学计算           | 提供常用的算法实现、高精度计算或统计函数。                                     |
@@ -39,11 +39,3 @@ go get -u github.com/natholdallas/natools4go
 | strs        | 字符串操作         | 包含大小写转换、驼峰命名转换、正则匹配等工具。                                 |
 | va          | 数据校验           | 封装 `github.com/go-playground/validator/v10`，用于验证结构体字段或 API 参数。 |
 | vipers      | 配置管理           | 封装 `github.com/spf13/viper` 库，用于读取 YAML/JSON 配置文件及环境变量。      |
-
-## todo
-
-- [x] spew 添加更高效率，可观的 `struct` 输出格式
-- [x] arrs 添加更多函数
-- [ ] maths 包拓展
-- [x] strs 重构
-- [x] 优化性能，添加注释

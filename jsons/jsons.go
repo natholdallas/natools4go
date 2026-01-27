@@ -24,16 +24,14 @@ func IUnmarshal[T any](bytes []byte) T {
 // Marshal returns the JSON encoding of v.
 // If the optional pretty parameter is set to true, it returns indented JSON using tabs.
 func Marshal(v any, pretty ...bool) ([]byte, error) {
-	p := arrs.GetDefault(false, pretty)
-	if p {
+	if arrs.GetDefault(false, pretty) {
 		return json.MarshalIndent(v, "", "\t")
 	}
 	return json.Marshal(v)
 }
 
 func IMarshal(v any, pretty ...bool) []byte {
-	p := arrs.GetDefault(false, pretty)
-	if p {
+	if arrs.GetDefault(false, pretty) {
 		value, _ := json.MarshalIndent(v, "", "\t")
 		return value
 	}
@@ -44,8 +42,7 @@ func IMarshal(v any, pretty ...bool) []byte {
 // String returns the JSON encoding of data as a string.
 // If the optional pretty parameter is true, it returns indented JSON using two spaces.
 func String(data any, pretty ...bool) (string, error) {
-	p := arrs.GetDefault(false, pretty)
-	if p {
+	if arrs.GetDefault(false, pretty) {
 		d, err := json.MarshalIndent(data, "", "  ")
 		return string(d), err
 	}
@@ -54,8 +51,7 @@ func String(data any, pretty ...bool) (string, error) {
 }
 
 func IString(data any, pretty ...bool) string {
-	p := arrs.GetDefault(false, pretty)
-	if p {
+	if arrs.GetDefault(false, pretty) {
 		d, _ := json.MarshalIndent(data, "", "  ")
 		return string(d)
 	}

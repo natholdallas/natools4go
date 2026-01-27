@@ -1,13 +1,17 @@
-// Package fibers is tiny packaging support fiber
-package fibers
+// Package fext is tiny packaging support fiber
+package fext
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/natholdallas/natools4go/arrs"
+	"github.com/natholdallas/natools4go/strs"
 	"github.com/natholdallas/natools4go/va"
 )
 
 // StdLogFmt defines a standard format string for Fiber's logger middleware.
-const StdLogFmt = "${ip} ${time} ${status} - ${method} ${path} ${error}\n"
+const StdLogFmt = "[${ip}:${port}] ${time} ${status} - ${method} ${path} ${error}\n"
 
 // IdentityParam is a mixin struct for embedding common ID parameters from URIs.
 // Usage: type UserReq struct { fibers.IdentityParam; Name string `json:"name"` }
@@ -162,4 +166,22 @@ func JSON(c *fiber.Ctx, status int, data any) error {
 // SendString sends a plain text response with the specified HTTP status code.
 func SendString(c *fiber.Ctx, status int, str string) error {
 	return c.Status(status).SendString(str)
+}
+
+// --- Request Helpers ---
+
+// GetAuthorization extracts the credential part from the "Authorization" header.
+// It removes the scheme prefix (e.g., "Bearer ") from the header value.
+// If no custom scheme is provided, it defaults to "Bearer ".
+func GetAuthorization(c *fiber.Ctx, scheme ...string) string {
+	auth := c.Get(fiber.HeaderAuthorization)
+	if auth == "" {
+		return ""
+	}
+	prefix := strs.ToEnd(arrs.GetDefault("Bearer ", scheme), strs.Space)
+	// Case-insensitive prefix removal for better compatibility
+	if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
+		return auth[len(prefix):]
+	}
+	return auth
 }
