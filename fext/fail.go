@@ -1,7 +1,7 @@
 package fext
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 var (
@@ -38,7 +38,7 @@ func (e *Fail) Error() string {
 }
 
 // ErrorHandler is optimized error handler impl
-func ErrorHandler(c *fiber.Ctx, err error) error {
+func ErrorHandler(c fiber.Ctx, err error) error {
 	// Default status and structure
 	status := fiber.StatusBadRequest
 	resp := Fail{}

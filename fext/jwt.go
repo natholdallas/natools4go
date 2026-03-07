@@ -3,8 +3,8 @@ package fext
 import (
 	"time"
 
-	jwtware "github.com/gofiber/contrib/jwt"
-	"github.com/gofiber/fiber/v2"
+	jwtware "github.com/gofiber/contrib/v3/jwt"
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -20,7 +20,7 @@ func Jwtware(secretKey string) fiber.Handler {
 
 // JwtErrorHandler is a specialized error handler for JWT middleware.
 // It captures authentication errors and returns a 401 Unauthorized status.
-func JwtErrorHandler(c *fiber.Ctx, err error) error {
+func JwtErrorHandler(c fiber.Ctx, err error) error {
 	return fiber.NewError(fiber.StatusUnauthorized, err.Error())
 }
 
@@ -69,7 +69,7 @@ func (j *Jwt) ParseToken(token string) (jwt.RegisteredClaims, error) {
 
 // Claims retrieves the JWT RegisteredClaims from the Fiber context.
 // This should be called on routes protected by the Jwt instance's middleware.
-func (j *Jwt) Claims(c *fiber.Ctx) *jwt.RegisteredClaims {
+func (j *Jwt) Claims(c fiber.Ctx) *jwt.RegisteredClaims {
 	usr := c.Locals("user")
 	if usr == nil {
 		return nil

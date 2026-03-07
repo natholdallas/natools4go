@@ -3,12 +3,12 @@ package fext
 import (
 	"fmt"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // Cache used to set response header cache middleware
 // func Cache(time int64) fiber.Handler {
-// 	return func(c *fiber.Ctx) error {
+// 	return func(c fiber.Ctx) error {
 // 		c.Set(fiber.HeaderCacheControl, "public, max-age="+strs.FormatInt(time))
 // 		return c.Next()
 // 	}
@@ -25,7 +25,7 @@ func Cache(seconds int64) fiber.Handler {
 	// Construct the header value once to improve middleware performance
 	cacheValue := fmt.Sprintf("public, max-age=%d", seconds)
 
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		c.Set(fiber.HeaderCacheControl, cacheValue)
 		return c.Next()
 	}

@@ -4,7 +4,7 @@ package fext
 import (
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/natholdallas/natools4go/arrs"
 	"github.com/natholdallas/natools4go/strs"
 	"github.com/natholdallas/natools4go/va"
@@ -21,14 +21,14 @@ type IdentityParam[T any] struct {
 
 // FormData binds data from all possible sources: URI parameters, Query strings, and Request Body.
 // It prioritizes BodyParser as the final override.
-func FormData[T any](c *fiber.Ctx) (v T, err error) {
-	if err = c.ParamsParser(&v); err != nil {
+func FormData[T any](c fiber.Ctx) (v T, err error) {
+	if err = c.Bind().URI(&v); err != nil {
 		return
 	}
-	if err = c.QueryParser(&v); err != nil {
+	if err = c.Bind().Query(&v); err != nil {
 		return
 	}
-	if err = c.BodyParser(&v); err != nil {
+	if err = c.Bind().Body(&v); err != nil {
 		return
 	}
 	err = va.Struct(v)
@@ -38,14 +38,14 @@ func FormData[T any](c *fiber.Ctx) (v T, err error) {
 // --- Cookie Parsers ---
 
 // CookieParser binds request cookies to the provided struct type T.
-func CookieParser[T any](c *fiber.Ctx) (v T, err error) {
-	err = c.CookieParser(&v)
+func CookieParser[T any](c fiber.Ctx) (v T, err error) {
+	err = c.Bind().Cookie(&v)
 	return
 }
 
 // CookieVarser binds request cookies to struct T and performs validation.
-func CookieVarser[T any](c *fiber.Ctx) (v T, err error) {
-	if err = c.CookieParser(&v); err != nil {
+func CookieVarser[T any](c fiber.Ctx) (v T, err error) {
+	if err = c.Bind().Cookie(&v); err != nil {
 		return
 	}
 	err = va.Struct(v)
@@ -55,14 +55,14 @@ func CookieVarser[T any](c *fiber.Ctx) (v T, err error) {
 // --- Header Parsers ---
 
 // ReqHeaderParser binds request headers to the provided struct type T.
-func ReqHeaderParser[T any](c *fiber.Ctx) (v T, err error) {
-	err = c.ReqHeaderParser(&v)
+func ReqHeaderParser[T any](c fiber.Ctx) (v T, err error) {
+	err = c.Bind().Header(&v)
 	return
 }
 
 // ReqHeaderVarser binds request headers to struct T and performs validation.
-func ReqHeaderVarser[T any](c *fiber.Ctx) (v T, err error) {
-	if err = c.ReqHeaderParser(&v); err != nil {
+func ReqHeaderVarser[T any](c fiber.Ctx) (v T, err error) {
+	if err = c.Bind().Header(&v); err != nil {
 		return
 	}
 	err = va.Struct(v)
@@ -74,8 +74,8 @@ func ReqHeaderVarser[T any](c *fiber.Ctx) (v T, err error) {
 // application/json, application/xml, application/x-www-form-urlencoded, multipart/form-data
 // All JSON extenstion mime types are supported (eg. application/problem+json)
 // If none of the content types above are matched, it will return a ErrUnprocessableEntity error
-func BodyParser[T any](c *fiber.Ctx) (v T, err error) {
-	err = c.BodyParser(&v)
+func BodyParser[T any](c fiber.Ctx) (v T, err error) {
+	err = c.Bind().Body(&v)
 	return
 }
 
@@ -84,8 +84,8 @@ func BodyParser[T any](c *fiber.Ctx) (v T, err error) {
 // application/json, application/xml, application/x-www-form-urlencoded, multipart/form-data
 // All JSON extenstion mime types are supported (eg. application/problem+json)
 // If none of the content types above are matched, it will return a ErrUnprocessableEntity error
-func BodyVarser[T any](c *fiber.Ctx) (v T, err error) {
-	if err = c.BodyParser(&v); err != nil {
+func BodyVarser[T any](c fiber.Ctx) (v T, err error) {
+	if err = c.Bind().Body(&v); err != nil {
 		return
 	}
 	err = va.Struct(v)
@@ -96,20 +96,20 @@ func BodyVarser[T any](c *fiber.Ctx) (v T, err error) {
 
 // RestParser binds both URI parameters and the request body to struct T.
 // Ideal for POST, PUT, and PATCH requests.
-func RestParser[T any](c *fiber.Ctx) (v T, err error) {
-	if err = c.ParamsParser(&v); err != nil {
+func RestParser[T any](c fiber.Ctx) (v T, err error) {
+	if err = c.Bind().URI(&v); err != nil {
 		return
 	}
-	err = c.BodyParser(&v)
+	err = c.Bind().Body(&v)
 	return
 }
 
 // RestVarser binds URI parameters and the request body to struct T, then performs validation.
-func RestVarser[T any](c *fiber.Ctx) (v T, err error) {
-	if err = c.ParamsParser(&v); err != nil {
+func RestVarser[T any](c fiber.Ctx) (v T, err error) {
+	if err = c.Bind().URI(&v); err != nil {
 		return
 	}
-	if err = c.BodyParser(&v); err != nil {
+	if err = c.Bind().Body(&v); err != nil {
 		return
 	}
 	err = va.Struct(v)
@@ -119,14 +119,14 @@ func RestVarser[T any](c *fiber.Ctx) (v T, err error) {
 // --- Query Parsers ---
 
 // QueryParser binds URL query parameters to struct T. Usually used for GET requests.
-func QueryParser[T any](c *fiber.Ctx) (v T, err error) {
-	err = c.QueryParser(&v)
+func QueryParser[T any](c fiber.Ctx) (v T, err error) {
+	err = c.Bind().Query(&v)
 	return
 }
 
 // QueryVarser binds URL query parameters to struct T and performs validation.
-func QueryVarser[T any](c *fiber.Ctx) (v T, err error) {
-	if err = c.QueryParser(&v); err != nil {
+func QueryVarser[T any](c fiber.Ctx) (v T, err error) {
+	if err = c.Bind().Query(&v); err != nil {
 		return
 	}
 	err = va.Struct(v)
@@ -136,14 +136,14 @@ func QueryVarser[T any](c *fiber.Ctx) (v T, err error) {
 // --- URI Param Parsers ---
 
 // ParamsParser binds URI route parameters to struct T.
-func ParamsParser[T any](c *fiber.Ctx) (v T, err error) {
-	err = c.ParamsParser(&v)
+func ParamsParser[T any](c fiber.Ctx) (v T, err error) {
+	err = c.Bind().URI(&v)
 	return
 }
 
 // ParamsVarser binds URI route parameters to struct T and performs validation.
-func ParamsVarser[T any](c *fiber.Ctx) (v T, err error) {
-	if err = c.ParamsParser(&v); err != nil {
+func ParamsVarser[T any](c fiber.Ctx) (v T, err error) {
+	if err = c.Bind().URI(&v); err != nil {
 		return
 	}
 	err = va.Struct(v)
@@ -153,18 +153,18 @@ func ParamsVarser[T any](c *fiber.Ctx) (v T, err error) {
 // --- Response Helpers ---
 
 // Status is a shorthand to set the HTTP response status code.
-func Status(c *fiber.Ctx, status int) error {
+func Status(c fiber.Ctx, status int) error {
 	c.Status(status)
 	return nil
 }
 
 // JSON sends a JSON response with the specified HTTP status code.
-func JSON(c *fiber.Ctx, status int, data any) error {
+func JSON(c fiber.Ctx, status int, data any) error {
 	return c.Status(status).JSON(data)
 }
 
 // SendString sends a plain text response with the specified HTTP status code.
-func SendString(c *fiber.Ctx, status int, str string) error {
+func SendString(c fiber.Ctx, status int, str string) error {
 	return c.Status(status).SendString(str)
 }
 
@@ -173,7 +173,7 @@ func SendString(c *fiber.Ctx, status int, str string) error {
 // GetAuthorization extracts the credential part from the "Authorization" header.
 // It removes the scheme prefix (e.g., "Bearer ") from the header value.
 // If no custom scheme is provided, it defaults to "Bearer ".
-func GetAuthorization(c *fiber.Ctx, scheme ...string) string {
+func GetAuthorization(c fiber.Ctx, scheme ...string) string {
 	auth := c.Get(fiber.HeaderAuthorization)
 	if auth == "" {
 		return ""
