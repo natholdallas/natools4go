@@ -49,6 +49,13 @@ func Find[T any](tx *gorm.DB, conds ...any) ([]T, error) {
 	return v, err
 }
 
+// IFind list all record, if not found it will return a zero value
+func IFind[T any](tx *gorm.DB, conds ...any) []T {
+	var v []T
+	tx.Find(&v, conds...)
+	return v
+}
+
 // Save performs an Upsert (Update or Insert) based on the primary key's presence.
 func Save[T any](tx *gorm.DB, v *T) error {
 	return tx.Save(v).Error

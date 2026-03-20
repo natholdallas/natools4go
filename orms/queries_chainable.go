@@ -12,7 +12,7 @@ import (
 //	// if user's primary key is non-blank, will use it as condition, then will only update that user's name to `hello`
 //	db.Model(&user).Update("name", "hello")
 func (q *Query[T]) Model(value any) *Query[T] {
-	q.tx = q.tx.Model(value)
+	q.db = q.db.Model(value)
 	return q
 }
 
@@ -31,7 +31,7 @@ func (q *Query[T]) Model(value any) *Query[T] {
 //
 // [docs]: https://gorm.io/docs/sql_builder.html#Clauses
 func (q *Query[T]) Clauses(conds ...clause.Expression) *Query[T] {
-	q.tx = q.tx.Clauses(conds...)
+	q.db = q.db.Clauses(conds...)
 	return q
 }
 
@@ -42,7 +42,7 @@ func (q *Query[T]) Clauses(conds ...clause.Expression) *Query[T] {
 //	// Select distinct name/age pairs from users
 //	db.Distinct("name", "age").Find(&results)
 func (q *Query[T]) Distinct(args ...any) *Query[T] {
-	q.tx = q.tx.Distinct(args...)
+	q.db = q.db.Distinct(args...)
 	return q
 }
 
@@ -56,19 +56,19 @@ func (q *Query[T]) Distinct(args ...any) *Query[T] {
 //	// Select name and age of user using an array
 //	db.Select([]string{"name", "age"}).Find(&users)
 func (q *Query[T]) Select(query any, args ...any) *Query[T] {
-	q.tx = q.tx.Select(query, args...)
+	q.db = q.db.Select(query, args...)
 	return q
 }
 
 // Omit specify fields that you want to ignore when creating, updating and querying
 func (q *Query[T]) Omit(columns ...string) *Query[T] {
-	q.tx = q.tx.Omit(columns...)
+	q.db = q.db.Omit(columns...)
 	return q
 }
 
 // MapColumns modify the column names in the query results to facilitate align to the corresponding structural fields
 func (q *Query[T]) MapColumns(m map[string]string) *Query[T] {
-	q.tx = q.tx.MapColumns(m)
+	q.db = q.db.MapColumns(m)
 	return q
 }
 
@@ -85,7 +85,7 @@ func (q *Query[T]) MapColumns(m map[string]string) *Query[T] {
 //
 // [docs]: https://gorm.io/docs/query.html#Conditions
 func (q *Query[T]) Where(query any, args ...any) *Query[T] {
-	q.tx = q.tx.Where(query, args...)
+	q.db = q.db.Where(query, args...)
 	return q
 }
 
@@ -96,7 +96,7 @@ func (q *Query[T]) Where(query any, args ...any) *Query[T] {
 //	// Find the first user with name not equal to jinzhu
 //	db.Not("name = ?", "jinzhu").First(&user)
 func (q *Query[T]) Not(query any, args ...any) *Query[T] {
-	q.tx = q.tx.Not(query, args...)
+	q.db = q.db.Not(query, args...)
 	return q
 }
 
@@ -107,7 +107,7 @@ func (q *Query[T]) Not(query any, args ...any) *Query[T] {
 //	// Find the first user with name equal to jinzhu or john
 //	db.Where("name = ?", "jinzhu").Or("name = ?", "john").First(&user)
 func (q *Query[T]) Or(query any, args ...any) *Query[T] {
-	q.tx = q.tx.Or(query, args...)
+	q.db = q.db.Or(query, args...)
 	return q
 }
 
@@ -117,14 +117,14 @@ func (q *Query[T]) Or(query any, args ...any) *Query[T] {
 //	db.Joins("JOIN emails ON emails.user_id = users.id AND emails.email = ?", "jinzhu@example.org").Find(&user)
 //	db.Joins("Account", DB.Select("id").Where("user_id = users.id AND name = ?", "someName").Model(&Account{}))
 func (q *Query[T]) Joins(query string, args ...any) *Query[T] {
-	q.tx = q.tx.Joins(query, args...)
+	q.db = q.db.Joins(query, args...)
 	return q
 }
 
 // InnerJoins specify inner joins conditions
 // db.InnerJoins("Account").Find(&user)
 func (q *Query[T]) InnerJoins(query string, args ...any) *Query[T] {
-	q.tx = q.tx.InnerJoins(query, args...)
+	q.db = q.db.InnerJoins(query, args...)
 	return q
 }
 
@@ -133,7 +133,7 @@ func (q *Query[T]) InnerJoins(query string, args ...any) *Query[T] {
 //	// Select the sum age of users with given names
 //	db.Model(&User{}).Select("name, sum(age) as total").Group("name").Find(&results)
 func (q *Query[T]) Group(name string) *Query[T] {
-	q.tx = q.tx.Group(name)
+	q.db = q.db.Group(name)
 	return q
 }
 
@@ -142,7 +142,7 @@ func (q *Query[T]) Group(name string) *Query[T] {
 //	// Select the sum age of users with name jinzhu
 //	db.Model(&User{}).Select("name, sum(age) as total").Group("name").Having("name = ?", "jinzhu").Find(&result)
 func (q *Query[T]) Having(query any, args ...any) *Query[T] {
-	q.tx = q.tx.Having(query, args...)
+	q.db = q.db.Having(query, args...)
 	return q
 }
 
@@ -155,7 +155,7 @@ func (q *Query[T]) Having(query any, args ...any) *Query[T] {
 //		{Column: clause.Column{Name: "age"}, Desc: true},
 //	}})
 func (q *Query[T]) Order(value any) *Query[T] {
-	q.tx = q.tx.Order(value)
+	q.db = q.db.Order(value)
 	return q
 }
 
@@ -168,7 +168,7 @@ func (q *Query[T]) Order(value any) *Query[T] {
 //	// retrieve 3 users into users1, and all users into users2
 //	db.Limit(3).Find(&users1).Limit(-1).Find(&users2)
 func (q *Query[T]) Limit(limit int) *Query[T] {
-	q.tx = q.tx.Limit(limit)
+	q.db = q.db.Limit(limit)
 	return q
 }
 
@@ -181,7 +181,7 @@ func (q *Query[T]) Limit(limit int) *Query[T] {
 //	// select the first user by cancelling an earlier chained offset
 //	db.Offset(5).Offset(-1).First(&user)
 func (q *Query[T]) Offset(offset int) *Query[T] {
-	q.tx = q.tx.Offset(offset)
+	q.db = q.db.Offset(offset)
 	return q
 }
 
@@ -199,7 +199,7 @@ func (q *Query[T]) Offset(offset int) *Query[T] {
 //
 //	db.Scopes(AmountGreaterThan1000, OrderStatus([]string{"paid", "shipped"})).Find(&orders)
 func (q *Query[T]) Scopes(funcs ...func(*gorm.DB) *gorm.DB) *Query[T] {
-	q.tx = q.tx.Scopes(funcs...)
+	q.db = q.db.Scopes(funcs...)
 	return q
 }
 
@@ -208,7 +208,7 @@ func (q *Query[T]) Scopes(funcs ...func(*gorm.DB) *gorm.DB) *Query[T] {
 //	// get all users, and preload all non-cancelled orders
 //	db.Preload("Orders", "state NOT IN (?)", "cancelled").Find(&users)
 func (q *Query[T]) Preload(query string, args ...any) *Query[T] {
-	q.tx = q.tx.Preload(query, args...)
+	q.db = q.db.Preload(query, args...)
 	return q
 }
 
@@ -227,7 +227,7 @@ func (q *Query[T]) Preload(query string, args ...any) *Query[T] {
 // [FirstOrCreate]: https://gorm.io/docs/advanced_query.html#FirstOrCreate
 // [FirstOrInit]: https://gorm.io/docs/advanced_query.html#FirstOrInit
 func (q *Query[T]) Attrs(attrs ...any) *Query[T] {
-	q.tx = q.tx.Attrs(attrs...)
+	q.db = q.db.Attrs(attrs...)
 	return q
 }
 
@@ -247,7 +247,7 @@ func (q *Query[T]) Attrs(attrs ...any) *Query[T] {
 // [FirstOrCreate]: https://gorm.io/docs/advanced_query.html#FirstOrCreate
 // [FirstOrInit]: https://gorm.io/docs/advanced_query.html#FirstOrInit
 func (q *Query[T]) Assign(attrs ...any) *Query[T] {
-	q.tx = q.tx.Assign(attrs...)
+	q.db = q.db.Assign(attrs...)
 	return q
 }
 
@@ -262,12 +262,12 @@ func (q *Query[T]) Assign(attrs ...any) *Query[T] {
 //	db.Unscoped().Find(&users)
 //	// Retrieves all users, including deleted ones.
 func (q *Query[T]) Unscoped() *Query[T] {
-	q.tx = q.tx.Unscoped()
+	q.db = q.db.Unscoped()
 	return q
 }
 
 // Raw is a raw SQL builder with placeholders.
 func (q *Query[T]) Raw(sql string, values ...any) *Query[T] {
-	q.tx = q.tx.Raw(sql, values...)
+	q.db = q.db.Raw(sql, values...)
 	return q
 }
