@@ -35,6 +35,7 @@ func First[T any](tx *gorm.DB, conds ...any) (T, error) {
 	return v, err
 }
 
+// IFirst retrieves a single record by its primary key ignoring the error.
 func IFirst[T any](tx *gorm.DB, conds ...any) T {
 	var v T
 	tx.First(&v, conds...)
