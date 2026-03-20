@@ -14,9 +14,13 @@ import (
 const StdLogFmt = "[${ip}:${port}] ${time} ${status} - ${method} ${path} ${error}\n"
 
 // IdentityParam is a mixin struct for embedding common ID parameters from URIs.
-// Usage: type UserReq struct { fibers.IdentityParam; Name string `json:"name"` }
 type IdentityParam[T any] struct {
 	ID T `param:"id" json:"-"`
+}
+
+// Value is simple struct for get field from value
+type Value[T any] struct {
+	Value T `json:"value"`
 }
 
 // FormData binds data from all possible sources: URI parameters, Query strings, and Request Body.

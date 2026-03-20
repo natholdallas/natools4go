@@ -70,15 +70,9 @@ func (j *Jwt) ParseToken(token string) (jwt.RegisteredClaims, error) {
 // Claims retrieves the JWT RegisteredClaims from the Fiber context.
 // This should be called on routes protected by the Jwt instance's middleware.
 func (j *Jwt) Claims(c fiber.Ctx) *jwt.RegisteredClaims {
-	usr := c.Locals("user")
-	if usr == nil {
-		return nil
+	token := jwtware.FromContext(c)
+	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok {
+		return claims
 	}
-	// Attempt to cast the context local value to the expected jwt.Token
-	if token, ok := usr.(*jwt.Token); ok {
-		if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok {
-			return claims
-		}
-	}
-	return nil
+	return &jwt.RegisteredClaims{}
 }
