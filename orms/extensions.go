@@ -28,22 +28,22 @@ type Scoper interface {
 
 // SoftModel is a generic base model including ID and standard timestamps with Soft Delete support.
 type SoftModel[T any] struct {
-	ID        T              `gorm:"column:id;primaryKey" json:"id"`
-	CreatedAt time.Time      `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at" json:"deleted_at"`
+	ID        T              `gorm:"column:id;primaryKey;comment:ID" json:"id"`
+	CreatedAt time.Time      `gorm:"column:created_at;comment:Created Time" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"column:updated_at;comment:Updated Time" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;comment:Deleted Time" json:"deleted_at"`
 }
 
 // Model is a generic base model including ID and standard timestamps without Soft Delete.
 type Model[T any] struct {
-	ID        T         `gorm:"column:id;primaryKey" json:"id"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at"`
+	ID        T         `gorm:"column:id;primaryKey;comment:ID" json:"id"`
+	CreatedAt time.Time `gorm:"column:created_at;comment:Created Time" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at;comment:Updated Time" json:"updated_at"`
 }
 
 // IDModel is a simple generic model containing only a primary key.
 type IDModel[T any] struct {
-	ID T `gorm:"column:id;primaryKey" json:"id"`
+	ID T `gorm:"column:id;primaryKey;comment:ID" json:"id"`
 }
 
 // Sorter represents a single column sorting configuration.
