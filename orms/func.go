@@ -42,6 +42,34 @@ func IFirst[T any](tx *gorm.DB, conds ...any) T {
 	return v
 }
 
+// Take retrieves a single record by its primary key, returning an error if not found.
+func Take[T any](tx *gorm.DB, conds ...any) (T, error) {
+	var v T
+	err := tx.Take(&v, conds...).Error
+	return v, err
+}
+
+// ITake retrieves a single record by its primary key, ignoring the error if not found.
+func ITake[T any](tx *gorm.DB, conds ...any) T {
+	var v T
+	tx.Take(&v, conds...)
+	return v
+}
+
+// Last retrieves the last record of the model type T.
+func Last[T any](tx *gorm.DB, conds ...any) (T, error) {
+	var v T
+	err := tx.Last(&v, conds...).Error
+	return v, err
+}
+
+// ILast retrieves the last record of the model type T ignoring the error.
+func ILast[T any](tx *gorm.DB, conds ...any) T {
+	var v T
+	tx.Last(&v, conds...)
+	return v
+}
+
 // Find list all record
 func Find[T any](tx *gorm.DB, conds ...any) ([]T, error) {
 	v := []T{}

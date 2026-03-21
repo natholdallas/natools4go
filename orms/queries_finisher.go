@@ -249,6 +249,19 @@ func (q *Query[T]) Paginate(pagination Pagination) (Page[T], *gorm.DB) {
 	content := []T{}
 	q.db = q.db.Count(&total).Scopes(pagination.Scope).Find(&content)
 	page := maths.DivCeil(total, int64(pagination.Size))
-	v := Page[T]{total, page, content}
-	return v, q.db
+	return Page[T]{total, page, content}, q.db
+}
+
+// IPaginate executes the query with pagination and returns a Page[T].
+// It automatically sets the model to T if not already defined.
+func (q *Query[T]) IPaginate(pagination Pagination) Page[T] {
+	if q.db.Statement.Model == nil {
+		model := new(T)
+		q.db = q.db.Model(model)
+	}
+	total := int64(0)
+	content := []T{}
+	q.db = q.db.Count(&total).Scopes(pagination.Scope).Find(&content)
+	page := maths.DivCeil(total, int64(pagination.Size))
+	return Page[T]{total, page, content}
 }
