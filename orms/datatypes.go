@@ -8,7 +8,7 @@ import (
 
 // List is a generic slice type that supports JSON serialization/deserialization
 // for database persistence.
-type List[T any] []T
+type List[T any] []T // @name List
 
 // Scan implements the sql.Scanner interface to decode a JSON-encoded value
 // from the database into the List.
@@ -37,7 +37,7 @@ func (l List[T]) Value() (driver.Value, error) {
 
 // Dict is a generic map type that supports Dict serialization/deserialization
 // for database persistence.
-type Dict[T any] map[string]T
+type Dict[T any] map[string]T // @name Dict
 
 // Scan implements the sql.Scanner interface to decode a JSON-encoded value
 // from the database into the JSON map.

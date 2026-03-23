@@ -31,7 +31,7 @@ type Fail struct {
 	Code    string `json:"code,omitempty"`    // Application-specific error code
 	Message string `json:"message,omitempty"` // Human-readable error message
 	System  any    `json:"system,omitempty"`  // Raw system error (only shown in debug mode)
-}
+} // @name Fail
 
 func (e *Fail) Error() string {
 	return e.Message
