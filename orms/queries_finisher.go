@@ -107,9 +107,10 @@ func (q *Query[T]) IFindInBatches(batchSize int, fc func(tx *gorm.DB, batch int)
 //	// assign email regardless of if record is found
 //	db.Where(User{Name: "jinzhu"}).Assign(User{Email: "fake@fake.org"}).FirstOrInit(&user)
 //	// user -> User{Name: "jinzhu", Age: 20, Email: "fake@fake.org"}
-func (q *Query[T]) FirstOrInit(dest any, conds ...any) (tx *gorm.DB) {
-	tx = q.db.FirstOrInit(dest, conds...)
-	return
+func (q *Query[T]) FirstOrInit(conds ...any) (T, error) {
+	v := new(T)
+	err := q.db.FirstOrInit(v, conds...).Error
+	return *v, err
 }
 
 // FirstOrCreate finds the first matching record, otherwise if not found creates a new instance with given conds.
@@ -126,9 +127,10 @@ func (q *Query[T]) FirstOrInit(dest any, conds ...any) (tx *gorm.DB) {
 //	result := db.Where(User{Name: "jinzhu"}).Assign(User{Email: "fake@fake.org"}).FirstOrCreate(&user)
 //	// user -> User{Name: "jinzhu", Age: 20, Email: "fake@fake.org"}
 //	// result.RowsAffected -> 1
-func (q *Query[T]) FirstOrCreate(dest any, conds ...any) (tx *gorm.DB) {
-	tx = q.db.FirstOrCreate(dest, conds...)
-	return
+func (q *Query[T]) FirstOrCreate(conds ...any) (T, error) {
+	v := new(T)
+	err := q.db.FirstOrCreate(v, conds...).Error
+	return *v, err
 }
 
 // Update updates column with value using callbacks. Reference: https://gorm.io/docs/update.html#Update-Changed-Fields
@@ -154,8 +156,10 @@ func (q *Query[T]) UpdateColumns(values any) (tx *gorm.DB) {
 // Delete deletes value matching given conditions. If value contains primary key it is included in the conditions. If
 // value includes a deleted_at field, then Delete performs a soft delete instead by setting deleted_at with the current
 // time if null.
-func (q *Query[T]) Delete(conds ...any) error {
-	return q.db.Delete(new(T), conds...).Error
+func (q *Query[T]) Delete(conds ...any) (T, error) {
+	v := new(T)
+	err := q.db.Delete(v, conds...).Error
+	return *v, err
 }
 
 func (q *Query[T]) Count() int64 {
