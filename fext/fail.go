@@ -4,27 +4,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-var (
-	debugMode    bool                  = false
-	errLogger    func(err error)       = nil
-	errConverter func(err error) *Fail = nil
-)
-
-// SetDebugMode enables or disables the exposure of system-level errors in the response.
-func SetDebugMode(enabled bool) {
-	debugMode = enabled
-}
-
-// SetErrorLogger registers a custom function to log internal system errors.
-// error never be nil
-func SetErrorLogger(fn func(err error)) {
-	errLogger = fn
-}
-
-// SetErrorConverter registers a function to transform generic errors into the custom Error type.
-func SetErrorConverter(fn func(err error) *Fail) {
-	errConverter = fn
-}
+var ErrorConv func(err error) *Fail = nil
 
 type Fail struct {
 	Status  int    `json:"-"`                 // HTTP status code (not shown in body)
@@ -44,8 +24,8 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 	resp := Fail{}
 
 	// Optional conversion: transform raw error into *Error
-	if errConverter != nil {
-		if converted := errConverter(err); converted != nil {
+	if ErrorConv != nil {
+		if converted := ErrorConv(err); converted != nil {
 			err = converted
 		}
 	}
@@ -61,7 +41,7 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 
 		// Handle system error visibility and logging
 		if e.System != nil {
-			if debugMode {
+			if DebugMode {
 				// Convert error to string for reliable JSON serialization
 				if sysErr, ok := e.System.(error); ok {
 					resp.System = sysErr.Error()
@@ -69,9 +49,9 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 					resp.System = e.System
 				}
 			}
-			if errLogger != nil {
+			if ErrorFunc != nil {
 				if sysErr, ok := e.System.(error); ok {
-					errLogger(sysErr)
+					ErrorFunc(sysErr)
 				}
 			}
 		}
