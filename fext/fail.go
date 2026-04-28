@@ -4,8 +4,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-var ErrorConv func(err error) *Fail = nil
-
 type Fail struct {
 	Status  int    `json:"-"`                 // HTTP status code (not shown in body)
 	Code    string `json:"code,omitempty"`    // Application-specific error code
@@ -17,6 +15,12 @@ func (e *Fail) Error() string {
 	return e.Message
 }
 
+var errHandler func(err error) *Fail = nil
+
+func SetErrorHandler(fn func(err error) *Fail) {
+	errHandler = fn
+}
+
 // ErrorHandler is optimized error handler impl
 func ErrorHandler(c fiber.Ctx, err error) error {
 	// Default status and structure
@@ -24,8 +28,8 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 	resp := Fail{}
 
 	// Optional conversion: transform raw error into *Error
-	if ErrorConv != nil {
-		if converted := ErrorConv(err); converted != nil {
+	if errHandler != nil {
+		if converted := errHandler(err); converted != nil {
 			err = converted
 		}
 	}
@@ -41,7 +45,7 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 
 		// Handle system error visibility and logging
 		if e.System != nil {
-			if DebugMode {
+			if debug {
 				// Convert error to string for reliable JSON serialization
 				if sysErr, ok := e.System.(error); ok {
 					resp.System = sysErr.Error()
@@ -49,9 +53,9 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 					resp.System = e.System
 				}
 			}
-			if ErrorFunc != nil {
+			if errFunc != nil {
 				if sysErr, ok := e.System.(error); ok {
-					ErrorFunc(sysErr)
+					errFunc(sysErr)
 				}
 			}
 		}

@@ -16,12 +16,12 @@ const StdLogFmt = "[${ip}:${port}] ${time} ${status} - ${method} ${path} ${error
 // IdentityParam is a mixin struct for embedding common ID parameters from URIs.
 type IdentityParam[T any] struct {
 	ID T `param:"id" json:"-"`
-}
+} // @name IdentityParam
 
 // Value is simple struct for get field from value
 type Value[T any] struct {
 	Value T `json:"value"`
-}
+} // @name Value
 
 // FormData binds data from all possible sources: URI parameters, Query strings, and Request Body.
 // It prioritizes BodyParser as the final override.
