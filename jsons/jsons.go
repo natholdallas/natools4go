@@ -4,7 +4,7 @@ package jsons
 import (
 	"encoding/json"
 
-	"github.com/natholdallas/natools4go/arrs"
+	"github.com/natholdallas/natools4go/slice"
 )
 
 // Unmarshal parses the JSON-encoded data and stores the result in a new value of type T.
@@ -24,14 +24,14 @@ func IUnmarshal[T any](bytes []byte) T {
 // Marshal returns the JSON encoding of v.
 // If the optional pretty parameter is set to true, it returns indented JSON using tabs.
 func Marshal(v any, pretty ...bool) ([]byte, error) {
-	if arrs.GetDefault(false, pretty) {
+	if slice.Defu(false, pretty) {
 		return json.MarshalIndent(v, "", "\t")
 	}
 	return json.Marshal(v)
 }
 
 func IMarshal(v any, pretty ...bool) []byte {
-	if arrs.GetDefault(false, pretty) {
+	if slice.Defu(false, pretty) {
 		value, _ := json.MarshalIndent(v, "", "\t")
 		return value
 	}
@@ -42,7 +42,7 @@ func IMarshal(v any, pretty ...bool) []byte {
 // String returns the JSON encoding of data as a string.
 // If the optional pretty parameter is true, it returns indented JSON using two spaces.
 func String(data any, pretty ...bool) (string, error) {
-	if arrs.GetDefault(false, pretty) {
+	if slice.Defu(false, pretty) {
 		d, err := json.MarshalIndent(data, "", "  ")
 		return string(d), err
 	}
@@ -51,7 +51,7 @@ func String(data any, pretty ...bool) (string, error) {
 }
 
 func IString(data any, pretty ...bool) string {
-	if arrs.GetDefault(false, pretty) {
+	if slice.Defu(false, pretty) {
 		d, _ := json.MarshalIndent(data, "", "  ")
 		return string(d)
 	}

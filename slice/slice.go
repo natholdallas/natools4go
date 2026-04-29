@@ -1,5 +1,5 @@
-// Package arrs
-package arrs
+// Package slice is tiny packaging support slice
+package slice
 
 // Map applies the function f to each element of the slice arr and returns
 // a new slice containing the results. It transforms a slice of type T
@@ -32,12 +32,12 @@ func ForEach[T any](s []T, f func(T)) {
 	}
 }
 
-// GetDefault returns the first element of the provided variadic arguments (args)
+// Defu returns the first element of the provided variadic arguments (args)
 // if available; otherwise, it returns the specified defaultValue.
 //
 // This is a generic helper used to simulate optional parameters with
 // default values in Go functions.
-func GetDefault[T any](defaultValue T, args []T) T {
+func Defu[T any](defaultValue T, args []T) T {
 	if len(args) > 0 {
 		return args[0]
 	}

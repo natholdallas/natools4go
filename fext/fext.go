@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/natholdallas/natools4go/arrs"
+	"github.com/natholdallas/natools4go/slice"
 	"github.com/natholdallas/natools4go/strs"
 	"github.com/natholdallas/natools4go/va"
 )
@@ -182,7 +182,7 @@ func GetAuthorization(c fiber.Ctx, scheme ...string) string {
 	if auth == "" {
 		return ""
 	}
-	prefix := strs.ToEnd(arrs.GetDefault("Bearer ", scheme), strs.Space)
+	prefix := strs.ToEnd(slice.Defu("Bearer ", scheme), strs.Space)
 	// Case-insensitive prefix removal for better compatibility
 	if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
 		return auth[len(prefix):]
