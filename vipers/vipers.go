@@ -35,7 +35,7 @@ func Config(name, path string, confType ...string) {
 
 func Validate(data any) {
 	if err := va.Struct(data); err != nil {
-		log.Fatalf("missing required configuration: %v", err)
+		log.Fatalf("missing required configuration:\n%v", err)
 	} else {
 		spew.JSON(data)
 	}
