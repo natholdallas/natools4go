@@ -59,6 +59,12 @@ func IString(data any, pretty ...bool) string {
 	return string(d)
 }
 
+func Map(data any) map[string]any {
+	var m map[string]any
+	json.Unmarshal([]byte(IString(data)), &m)
+	return m
+}
+
 // Set traverses a nested map structure using the provided keys and assigns the value to the final key.
 // Note: This function assumes all intermediate levels are already existing maps.
 func Set(source map[string]any, value any, keys ...string) {
