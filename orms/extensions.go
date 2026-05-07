@@ -32,25 +32,25 @@ type SoftModel[T any] struct {
 	CreatedAt time.Time      `gorm:"column:created_at;comment:Created Time" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"column:updated_at;comment:Updated Time" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;comment:Deleted Time" json:"deleted_at"`
-}
+} // @name SoftModel
 
 // Model is a generic base model including ID and standard timestamps without Soft Delete.
 type Model[T any] struct {
 	ID        T         `gorm:"column:id;primaryKey;comment:ID" json:"id"`
 	CreatedAt time.Time `gorm:"column:created_at;comment:Created Time" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at;comment:Updated Time" json:"updated_at"`
-}
+} // @name Model
 
 // IDModel is a simple generic model containing only a primary key.
 type IDModel[T any] struct {
 	ID T `gorm:"column:id;primaryKey;comment:ID" json:"id"`
-}
+} // @name IDModel
 
 // Sorter represents a single column sorting configuration.
 type Sorter struct {
 	Column string `query:"column" json:"column"`
 	Desc   bool   `query:"desc" json:"desc"`
-}
+} // @name Sorter
 
 // Scope applies the sorting condition to the GORM transaction.
 func (s *Sorter) Scope(tx *gorm.DB) *gorm.DB {
@@ -68,7 +68,7 @@ func (s *Sorter) Conv() clause.OrderByColumn {
 // Sorters represents multiple column sorting configurations.
 type Sorters struct {
 	Columns []Sorter `query:"columns" json:"columns"`
-}
+} // @name Sorters
 
 // Scope applies multiple sorting conditions to the GORM transaction.
 func (s *Sorters) Scope(tx *gorm.DB) *gorm.DB {
@@ -91,7 +91,7 @@ func (s *Sorters) Conv() []clause.OrderByColumn {
 type Pagination struct {
 	Page int `json:"page" query:"page"`
 	Size int `json:"size" query:"size"`
-}
+} // @name Pagination
 
 // Scope applies Offset and Limit to the GORM transaction based on pagination settings.
 func (s *Pagination) Scope(db *gorm.DB) *gorm.DB {
