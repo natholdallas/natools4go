@@ -9,12 +9,17 @@ import (
 	"github.com/natholdallas/natools4go/jsons"
 )
 
+var printer func(format string, v ...any) = func(format string, v ...any) { fmt.Printf(format, v...) }
+
+func SetPrinter(p func(format string, v ...any)) {
+	printer = p
+}
+
 // Err prints each non-nil error from the provided slice to standard output.
 func Err(errs ...error) {
 	for _, err := range errs {
 		if err != nil {
-			// Using Fprintln to os.Stderr separates errors from normal output
-			fmt.Fprintln(os.Stderr, "[ERROR]", err)
+			printer("[ERROR] %v\n", err)
 		}
 	}
 }
@@ -31,11 +36,10 @@ func JSON(v ...any) {
 	for _, i := range v {
 		d, err := jsons.String(i, true)
 		if err != nil {
-			// Fallback to Go syntax representation if JSON fails
-			fmt.Printf("[JSON-FAIL] %#v\n", i)
+			printer("[JSON-FAIL] %v\n", err)
 			continue
 		}
-		fmt.Println(d)
+		printer("%s\n", d)
 	}
 }
 
@@ -43,7 +47,7 @@ func JSON(v ...any) {
 // which includes field names for structs.
 func Struct(v ...any) {
 	for _, i := range v {
-		fmt.Printf("%+v\n", i)
+		printer("%+v\n", i)
 	}
 }
 
@@ -52,7 +56,7 @@ func Struct(v ...any) {
 func File(path string) {
 	file, err := os.Open(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[FILE-ERR] %s: %v\n", path, err)
+		printer("[FILE-ERR] %s: %v\n", path, err)
 		return // Crucial: stop execution to avoid nil pointer panic
 	}
 	defer file.Close()
@@ -60,10 +64,9 @@ func File(path string) {
 	// Using a dedicated buffer can be faster for large files
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		printer("%s\n", scanner.Text())
 	}
-
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "[SCAN-ERR] %s: %v\n", path, err)
+		printer("[SCAN-ERR] %s: %v\n", path, err)
 	}
 }
