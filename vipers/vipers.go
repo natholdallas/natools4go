@@ -19,7 +19,8 @@ var events []EventHandler = []EventHandler{}
 
 // Watch sets up configuration watching and links it to the internal event dispatcher.
 // Call this after setting up your config paths/files.
-func Watch() {
+func Watch(es ...EventHandler) {
+	NewUpdateEvent(es...)
 	viper.OnConfigChange(Reload)
 	viper.WatchConfig()
 }
