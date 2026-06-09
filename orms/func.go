@@ -1,6 +1,8 @@
 package orms
 
 import (
+	"database/sql"
+
 	"gorm.io/gorm"
 )
 
@@ -108,4 +110,14 @@ func UpdatesByID[T any](tx *gorm.DB, id, values any) error {
 // Delete performs a batch delete for the given primary keys.
 func Delete[T any](tx *gorm.DB, conds ...any) error {
 	return tx.Delete(new(T), conds...).Error
+}
+
+// Exec executes raw sql
+func Exec(tx *gorm.DB, sql string, values ...any) *gorm.DB {
+	return tx.Exec(sql, values...)
+}
+
+// Begin starts a transaction.
+func Transaction(tx *gorm.DB, fc func(tx *gorm.DB) error, opts ...*sql.TxOptions) error {
+	return tx.Transaction(fc, opts...)
 }

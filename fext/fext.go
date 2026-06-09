@@ -23,6 +23,17 @@ type Value[T any] struct {
 	Value T `json:"value" mapstructure:"value"`
 } // @name Value
 
+// Initializer is an interface for components that can be initialized.
+type Initializer interface {
+	Initialize()
+}
+
+func TryInitialize[T any](v *T) {
+	if i, ok := any(v).(Initializer); ok {
+		i.Initialize()
+	}
+}
+
 // FormData binds data from all possible sources: URI parameters, Query strings, and Request Body.
 // It prioritizes BodyParser as the final override.
 func FormData[T any](c fiber.Ctx) (v T, err error) {
@@ -35,6 +46,7 @@ func FormData[T any](c fiber.Ctx) (v T, err error) {
 	if err = c.Bind().Body(&v); err != nil {
 		return
 	}
+	TryInitialize(&v)
 	err = va.Struct(v)
 	return
 }
@@ -44,6 +56,7 @@ func FormData[T any](c fiber.Ctx) (v T, err error) {
 // CookieParser binds request cookies to the provided struct type T.
 func CookieParser[T any](c fiber.Ctx) (v T, err error) {
 	err = c.Bind().Cookie(&v)
+	TryInitialize(&v)
 	return
 }
 
@@ -52,6 +65,7 @@ func CookieVarser[T any](c fiber.Ctx) (v T, err error) {
 	if err = c.Bind().Cookie(&v); err != nil {
 		return
 	}
+	TryInitialize(&v)
 	err = va.Struct(v)
 	return
 }
@@ -61,6 +75,7 @@ func CookieVarser[T any](c fiber.Ctx) (v T, err error) {
 // ReqHeaderParser binds request headers to the provided struct type T.
 func ReqHeaderParser[T any](c fiber.Ctx) (v T, err error) {
 	err = c.Bind().Header(&v)
+	TryInitialize(&v)
 	return
 }
 
@@ -69,6 +84,7 @@ func ReqHeaderVarser[T any](c fiber.Ctx) (v T, err error) {
 	if err = c.Bind().Header(&v); err != nil {
 		return
 	}
+	TryInitialize(&v)
 	err = va.Struct(v)
 	return
 }
@@ -80,6 +96,7 @@ func ReqHeaderVarser[T any](c fiber.Ctx) (v T, err error) {
 // If none of the content types above are matched, it will return a ErrUnprocessableEntity error
 func BodyParser[T any](c fiber.Ctx) (v T, err error) {
 	err = c.Bind().Body(&v)
+	TryInitialize(&v)
 	return
 }
 
@@ -92,6 +109,7 @@ func BodyVarser[T any](c fiber.Ctx) (v T, err error) {
 	if err = c.Bind().Body(&v); err != nil {
 		return
 	}
+	TryInitialize(&v)
 	err = va.Struct(v)
 	return
 }
@@ -105,6 +123,7 @@ func RestParser[T any](c fiber.Ctx) (v T, err error) {
 		return
 	}
 	err = c.Bind().Body(&v)
+	TryInitialize(&v)
 	return
 }
 
@@ -116,6 +135,7 @@ func RestVarser[T any](c fiber.Ctx) (v T, err error) {
 	if err = c.Bind().Body(&v); err != nil {
 		return
 	}
+	TryInitialize(&v)
 	err = va.Struct(v)
 	return
 }
@@ -125,6 +145,7 @@ func RestVarser[T any](c fiber.Ctx) (v T, err error) {
 // QueryParser binds URL query parameters to struct T. Usually used for GET requests.
 func QueryParser[T any](c fiber.Ctx) (v T, err error) {
 	err = c.Bind().Query(&v)
+	TryInitialize(&v)
 	return
 }
 
@@ -133,6 +154,7 @@ func QueryVarser[T any](c fiber.Ctx) (v T, err error) {
 	if err = c.Bind().Query(&v); err != nil {
 		return
 	}
+	TryInitialize(&v)
 	err = va.Struct(v)
 	return
 }
@@ -142,6 +164,7 @@ func QueryVarser[T any](c fiber.Ctx) (v T, err error) {
 // ParamsParser binds URI route parameters to struct T.
 func ParamsParser[T any](c fiber.Ctx) (v T, err error) {
 	err = c.Bind().URI(&v)
+	TryInitialize(&v)
 	return
 }
 
@@ -150,6 +173,7 @@ func ParamsVarser[T any](c fiber.Ctx) (v T, err error) {
 	if err = c.Bind().URI(&v); err != nil {
 		return
 	}
+	TryInitialize(&v)
 	err = va.Struct(v)
 	return
 }

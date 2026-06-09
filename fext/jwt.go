@@ -71,8 +71,12 @@ func (j *Jwt) ParseToken(token string) (jwt.RegisteredClaims, error) {
 // This should be called on routes protected by the Jwt instance's middleware.
 func (j *Jwt) Claims(c fiber.Ctx) *jwt.RegisteredClaims {
 	token := jwtware.FromContext(c)
-	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok {
-		return claims
+	if token != nil {
+		if token.Claims != nil {
+			if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok {
+				return claims
+			}
+		}
 	}
 	return &jwt.RegisteredClaims{}
 }
