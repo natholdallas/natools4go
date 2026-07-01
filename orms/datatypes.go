@@ -13,26 +13,13 @@ type List[T any] []T // @name List
 // Scan implements the sql.Scanner interface to decode a JSON-encoded value
 // from the database into the List.
 func (s *List[T]) Scan(value any) error {
-	var data []byte
-	switch v := value.(type) {
-	case nil:
-		*s = nil
-		return nil
-	case []byte:
-		data = v
-	case string:
-		data = []byte(v)
-	default:
-		return fmt.Errorf("cannot convert %T to []byte", value)
-	}
-	return json.Unmarshal(data, s)
+	return JSONScan(s, value)
 }
 
 // Value implements the driver.Valuer interface to encode the List into
 // a JSON-encoded format for database storage.
-func (l List[T]) Value() (driver.Value, error) {
-	// Optional: You could return nil if len(l) == 0 to save space as NULL
-	return json.Marshal(l)
+func (s List[T]) Value() (driver.Value, error) {
+	return JSONValue(s)
 }
 
 // Dict is a generic map type that supports Dict serialization/deserialization
@@ -42,10 +29,20 @@ type Dict[T any] map[string]T // @name Dict
 // Scan implements the sql.Scanner interface to decode a JSON-encoded value
 // from the database into the JSON map.
 func (d *Dict[T]) Scan(value any) error {
+	return JSONScan(d, value)
+}
+
+// Value implements the driver.Valuer interface to encode the JSON map into
+// a JSON-encoded format for database storage.
+func (d Dict[T]) Value() (driver.Value, error) {
+	return JSONValue(d)
+}
+
+func JSONScan(d any, value any) error {
 	var bytes []byte
 	switch v := value.(type) {
 	case nil:
-		*d = nil
+		d = nil
 		return nil
 	case []byte:
 		bytes = v
@@ -57,15 +54,12 @@ func (d *Dict[T]) Scan(value any) error {
 
 	// If the database stores an empty string, treat it as an empty/nil map
 	if len(bytes) == 0 {
-		*d = nil
+		d = nil
 		return nil
 	}
-
 	return json.Unmarshal(bytes, d)
 }
 
-// Value implements the driver.Valuer interface to encode the JSON map into
-// a JSON-encoded format for database storage.
-func (d Dict[T]) Value() (driver.Value, error) {
+func JSONValue(d any) (driver.Value, error) {
 	return json.Marshal(d)
 }
