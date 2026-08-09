@@ -98,8 +98,10 @@ func (s *Pagination) Scope(db *gorm.DB) *gorm.DB {
 	if s.Page < 1 {
 		s.Page = 1
 	}
-	if s.Size < 1 || s.Size > 100 {
+	if s.Size < 1 {
 		s.Size = 20
+	} else if s.Size > 100 {
+		s.Size = 100
 	}
 	offset := (s.Page - 1) * s.Size
 	return db.Offset(offset).Limit(s.Size)

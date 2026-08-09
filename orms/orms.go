@@ -23,7 +23,7 @@ func New(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 
 	db, err := tx.DB()
 	if err != nil {
-		panic("failed to get underlying database instance: %v")
+		panic(fmt.Errorf("failed to get underlying sql.DB instance: %w", err))
 	}
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(100)
@@ -32,9 +32,9 @@ func New(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 	return tx
 }
 
-// ResetDB is a strategy to create database and drop the database, it will faster than turncate and
+// Recreate is a strategy to create database and drop the database, it will faster than turncate and
 // most important it is affinity with dev mode while you are first design your database
-func ResetDB(dbName string, driverName, dataSourceName string) error {
+func Recreate(dbName, driverName, dataSourceName string) error {
 	db, err := sql.Open(driverName, dataSourceName)
 	if err != nil {
 		return fmt.Errorf("failed to connect to server: %w", err)
@@ -51,8 +51,8 @@ func ResetDB(dbName string, driverName, dataSourceName string) error {
 	return nil
 }
 
-// EnsureDB creates a database if it does not already exist using the provided driver and data source.
-func EnsureDB(dbName string, driverName, dataSourceName string) {
+// Prepare creates a database if it does not already exist using the provided driver and data source.
+func Prepare(dbName, driverName, dataSourceName string) {
 	db, err := sql.Open(driverName, dataSourceName)
 	if err != nil {
 		panic(fmt.Errorf("failed to connect to database: %w", err))
@@ -68,6 +68,9 @@ func Dsn(username, password, host, port string) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/", username, password, host, port)
 }
 
-func Queries(name, query string) string {
-	return fmt.Sprintf("%s?%s", name, query)
+func Queries(dbName, queryParams string) string {
+	if queryParams == "" {
+		return dbName
+	}
+	return fmt.Sprintf("%s?%s", dbName, queryParams)
 }
