@@ -3,7 +3,6 @@ package orms
 import (
 	"database/sql"
 
-	"github.com/natholdallas/natools4go/maths"
 	"gorm.io/gorm"
 )
 
@@ -249,23 +248,14 @@ func (q *Query[T]) Paginate(pagination Pagination) (Page[T], *gorm.DB) {
 		model := new(T)
 		q.db = q.db.Model(model)
 	}
-	total := int64(0)
-	content := []T{}
-	q.db = q.db.Count(&total).Scopes(pagination.Scope).Find(&content)
-	page := maths.DivCeil(total, int64(pagination.Size))
-	return Page[T]{total, page, content}, q.db
+	page, db := Paginate[T](q.db, pagination)
+	q.db = db
+	return page, q.db
 }
 
 // IPaginate executes the query with pagination and returns a Page[T].
 // It automatically sets the model to T if not already defined.
 func (q *Query[T]) IPaginate(pagination Pagination) Page[T] {
-	if q.db.Statement.Model == nil {
-		model := new(T)
-		q.db = q.db.Model(model)
-	}
-	total := int64(0)
-	content := []T{}
-	q.db = q.db.Count(&total).Scopes(pagination.Scope).Find(&content)
-	page := maths.DivCeil(total, int64(pagination.Size))
-	return Page[T]{total, page, content}
+	page, _ := q.Paginate(pagination)
+	return page
 }

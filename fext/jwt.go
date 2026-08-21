@@ -1,6 +1,7 @@
 package fext
 
 import (
+	"fmt"
 	"time"
 
 	jwtware "github.com/gofiber/contrib/v3/jwt"
@@ -40,7 +41,11 @@ func GenToken(ID string, secretKey string, endtime ...time.Duration) (string, er
 // ParseToken decodes and validates a JWT string against the provided secret key.
 // It returns the [jwt.RegisteredClaims] if successful.
 func ParseToken(token, secretKey string) (claims jwt.RegisteredClaims, err error) {
-	_, err = jwt.ParseWithClaims(token, &claims, func(token *jwt.Token) (any, error) {
+	_, err = jwt.ParseWithClaims(token, &claims, func(t *jwt.Token) (any, error) {
+		// Reject non-HMAC signing methods to prevent algorithm confusion attacks.
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
 		return []byte(secretKey), nil
 	})
 	return claims, err

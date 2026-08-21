@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 // List is a generic slice type that supports JSON serialization/deserialization
@@ -39,10 +40,15 @@ func (d Dict[T]) Value() (driver.Value, error) {
 }
 
 func JSONScan(d any, value any) error {
+	rv := reflect.ValueOf(d)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return fmt.Errorf("failed to unmarshal JSONB value: expected non-nil pointer, got %T", d)
+	}
+
 	var bytes []byte
 	switch v := value.(type) {
 	case nil:
-		d = nil
+		rv.Elem().SetZero()
 		return nil
 	case []byte:
 		bytes = v
@@ -52,14 +58,24 @@ func JSONScan(d any, value any) error {
 		return fmt.Errorf("failed to unmarshal JSONB value: expected []byte or string, got %T", value)
 	}
 
-	// If the database stores an empty string, treat it as an empty/nil map
+	// If the database stores an empty value, treat it as empty/nil
 	if len(bytes) == 0 {
-		d = nil
+		rv.Elem().SetZero()
 		return nil
 	}
 	return json.Unmarshal(bytes, d)
 }
 
 func JSONValue(d any) (driver.Value, error) {
+	if d == nil {
+		return nil, nil
+	}
+	rv := reflect.ValueOf(d)
+	if rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return nil, nil
+		}
+		d = rv.Elem().Interface()
+	}
 	return json.Marshal(d)
 }

@@ -1,6 +1,8 @@
 package fext
 
 import (
+	"sync"
+
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -15,10 +17,27 @@ func (e *Fail) Error() string {
 	return e.Message
 }
 
-var errHandler func(err error) *Fail = nil
+var (
+	errHandlerMu sync.RWMutex
+	errHandler   func(err error) *Fail = nil
+)
 
 func SetErrorHandler(fn func(err error) *Fail) {
+	errHandlerMu.Lock()
 	errHandler = fn
+	errHandlerMu.Unlock()
+}
+
+func convertError(err error) error {
+	errHandlerMu.RLock()
+	fn := errHandler
+	errHandlerMu.RUnlock()
+	if fn != nil {
+		if converted := fn(err); converted != nil {
+			return converted
+		}
+	}
+	return err
 }
 
 // ErrorHandler is optimized error handler impl
@@ -27,12 +46,8 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 	status := fiber.StatusBadRequest
 	resp := Fail{}
 
-	// Optional conversion: transform raw error into *Error
-	if errHandler != nil {
-		if converted := errHandler(err); converted != nil {
-			err = converted
-		}
-	}
+	// Optional conversion: transform raw error into *Fail
+	err = convertError(err)
 
 	// Type switch to handle different error categories
 	switch e := err.(type) {
@@ -45,7 +60,7 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 
 		// Handle system error visibility and logging
 		if e.System != nil {
-			if debug {
+			if isDebug() {
 				// Convert error to string for reliable JSON serialization
 				if sysErr, ok := e.System.(error); ok {
 					resp.System = sysErr.Error()
@@ -53,10 +68,8 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 					resp.System = e.System
 				}
 			}
-			if errFunc != nil {
-				if sysErr, ok := e.System.(error); ok {
-					errFunc(sysErr)
-				}
+			if sysErr, ok := e.System.(error); ok {
+				onError(sysErr)
 			}
 		}
 

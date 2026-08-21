@@ -8,19 +8,20 @@ import (
 const (
 	Dot              = "."
 	Slash            = "/"
+	ForwardSlash     = Slash
 	Comma            = ","
 	Strike           = "-"
+	Dash             = Strike
+	Minus            = Strike
 	Space            = " "
 	Colon            = ":"
 	Equal            = "="
-	Dash             = "-"
 	Under            = "_"
 	Hash             = "#"
 	At               = "@"
 	Dollar           = "$"
 	Star             = "*"
 	Plus             = "+"
-	Minus            = "-"
 	Percent          = "%"
 	Ampersand        = "&"
 	Pipe             = "|"
@@ -39,7 +40,6 @@ const (
 	DoubleQuote      = "\""
 	SingleQuote      = "'"
 	Backslash        = "\\"
-	ForwardSlash     = "/"
 )
 
 // Wrap ensures the string 'v' starts and ends with 'char'.

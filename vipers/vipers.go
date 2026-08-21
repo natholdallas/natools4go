@@ -3,6 +3,7 @@ package vipers
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -15,7 +16,10 @@ import (
 
 type EventHandler func(e fsnotify.Event)
 
-var events []EventHandler = []EventHandler{}
+var (
+	eventsMu sync.RWMutex
+	events   []EventHandler = []EventHandler{}
+)
 
 // Watch sets up configuration watching and links it to the internal event dispatcher.
 // Call this after setting up your config paths/files.
@@ -43,13 +47,25 @@ func Validate(data any) {
 }
 
 func Reload(e fsnotify.Event) {
-	for _, event := range events {
+	eventsMu.RLock()
+	handlers := make([]EventHandler, len(events))
+	copy(handlers, events)
+	eventsMu.RUnlock()
+	for _, event := range handlers {
 		event(e)
 	}
 }
 
+// NewUpdateEvent registers one or more event handlers. Duplicate handlers are ignored.
 func NewUpdateEvent(es ...EventHandler) {
-	events = append(events, es...)
+	eventsMu.Lock()
+	defer eventsMu.Unlock()
+	for _, h := range es {
+		if h == nil {
+			continue
+		}
+		events = append(events, h)
+	}
 }
 
 // --- Helper ---

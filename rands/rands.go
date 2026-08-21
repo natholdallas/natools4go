@@ -2,6 +2,7 @@
 package rands
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand"
 	"sort"
@@ -57,6 +58,9 @@ func DistributeStrict(total, parts int) []int {
 // Digits extracts 'length' random digits from a large number after shuffling.
 func Digits(num *big.Int, length int) (int, error) {
 	digits := []byte(num.String())
+	if length < 1 || length > len(digits) {
+		return 0, fmt.Errorf("length %d out of range [1, %d]", length, len(digits))
+	}
 	FisherYateShuffle(digits)
 	return strconv.Atoi(string(digits[:length]))
 }

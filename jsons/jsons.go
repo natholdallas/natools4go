@@ -66,7 +66,7 @@ func Map(data any) map[string]any {
 }
 
 // Set traverses a nested map structure using the provided keys and assigns the value to the final key.
-// Note: This function assumes all intermediate levels are already existing maps.
+// Intermediate levels that are missing or not maps are skipped (no-op).
 func Set(source map[string]any, value any, keys ...string) {
 	src := source
 	for i, key := range keys {
@@ -75,17 +75,42 @@ func Set(source map[string]any, value any, keys ...string) {
 			src[key] = value
 			break
 		}
-		src = Get(src, key)
+		next, ok := src[key].(map[string]any)
+		if !ok {
+			return
+		}
+		src = next
 	}
 }
 
 // Get traverses a nested map structure by key sequence and returns the map at the final key.
-// Warning: This function uses a direct type assertion which will cause a panic if a key
-// does not exist or if the value is not a map[string]any.
+// If any intermediate key is missing or not a map, it returns nil instead of panicking.
 func Get(source map[string]any, keys ...string) map[string]any {
 	src := source
 	for _, key := range keys {
-		src = src[key].(map[string]any)
+		next, ok := src[key].(map[string]any)
+		if !ok {
+			return nil
+		}
+		src = next
 	}
 	return src
+}
+
+// GetOK is like Get but also reports whether the lookup fully succeeded and
+// whether the final value was present.
+func GetOK(source map[string]any, keys ...string) (any, bool) {
+	src := source
+	for i, key := range keys {
+		if i == len(keys)-1 {
+			v, ok := src[key]
+			return v, ok
+		}
+		next, ok := src[key].(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		src = next
+	}
+	return nil, false
 }

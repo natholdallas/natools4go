@@ -94,17 +94,26 @@ type Pagination struct {
 } // @name Pagination
 
 // Scope applies Offset and Limit to the GORM transaction based on pagination settings.
+// It does not modify the receiver; invalid values are normalized on a copy.
 func (s *Pagination) Scope(db *gorm.DB) *gorm.DB {
-	if s.Page < 1 {
-		s.Page = 1
+	page, size := s.normalize()
+	offset := (page - 1) * size
+	return db.Offset(offset).Limit(size)
+}
+
+// normalize returns sanitized page/size values without mutating the receiver.
+func (s *Pagination) normalize() (page, size int) {
+	page = s.Page
+	if page < 1 {
+		page = 1
 	}
-	if s.Size < 1 {
-		s.Size = 20
-	} else if s.Size > 100 {
-		s.Size = 100
+	size = s.Size
+	if size < 1 {
+		size = 20
+	} else if size > 100 {
+		size = 100
 	}
-	offset := (s.Page - 1) * s.Size
-	return db.Offset(offset).Limit(s.Size)
+	return page, size
 }
 
 // Page represents a paginated result container.
