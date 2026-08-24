@@ -1,11 +1,14 @@
 package fext
 
 import (
+	"io"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/log"
+	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/natholdallas/natools4go/constraints"
 )
 
@@ -51,6 +54,15 @@ func Listen(app *fiber.App, addr string, config ...fiber.ListenConfig) {
 	if err := app.Listen(addr, config...); err != nil {
 		onError(err)
 	}
+}
+
+// Log is a middleware that logs the request and response.
+func Log(prefix string, stream io.Writer) fiber.Handler {
+	return logger.New(logger.Config{
+		TimeFormat: time.DateTime,
+		Format:     "[" + prefix + "]" + StdLogFmt,
+		Stream:     stream,
+	})
 }
 
 // FormatPort takes an integer port and returns a formatted string like ":xxxx".

@@ -103,10 +103,7 @@ func (s *Pagination) Scope(db *gorm.DB) *gorm.DB {
 
 // normalize returns sanitized page/size values without mutating the receiver.
 func (s *Pagination) normalize() (page, size int) {
-	page = s.Page
-	if page < 1 {
-		page = 1
-	}
+	page = max(s.Page, 1)
 	size = s.Size
 	if size < 1 {
 		size = 20

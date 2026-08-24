@@ -22,22 +22,40 @@ import (
 // New is preset function to open gorm datasource, if err not nil it will be fatal
 // but actually i want use panic to replace log.Fatal
 // the template code shouldn't use such [log.Fatal] this function, it is business code
-func New(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
+func New(dialector gorm.Dialector, opts ...gorm.Option) (*gorm.DB, error) {
 	tx, err := gorm.Open(dialector, opts...)
 	if err != nil {
 		// Panic is preferred over log.Fatal in library code to allow for recovery
 		// and to ensure stack traces are available.
-		panic(fmt.Errorf("failed to open database: %w", err))
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
 	db, err := tx.DB()
 	if err != nil {
-		panic(fmt.Errorf("failed to get underlying sql.DB instance: %w", err))
+		return nil, fmt.Errorf("failed to get underlying sql.DB instance: %w", err)
 	}
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(100)
 	db.SetConnMaxLifetime(30 * time.Minute)
 	db.SetConnMaxIdleTime(5 * time.Minute)
+	return tx, nil
+}
+
+// INew returns only the gorm.DB instance, ignoring any error. This is a
+// convenience for callers that don't need to handle the error explicitly.
+func INew(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
+	tx, err := New(dialector, opts...)
+	if err != nil {
+		return nil
+	}
+	return tx
+}
+
+// MustNew returns the gorm.DB instance, panicking with context if an error occurs.
+func MustNew(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
+	tx, err := New(dialector, opts...)
+	if err != nil {
+		panic(err)
+	}
 	return tx
 }
 
@@ -55,7 +73,7 @@ func LogPreset(out io.Writer, level logger.LogLevel) logger.Interface {
 func Reset(dbName, driverName, dataSourceName string) error {
 	db, err := sql.Open(driverName, dataSourceName)
 	if err != nil {
-		return fmt.Errorf("failed to connect to server: %w", err)
+		return fmt.Errorf("failed to connect tt server: %w", err)
 	}
 	defer db.Close()
 	dropQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)
@@ -100,22 +118,36 @@ func Dsn(driverName, name, username, password, host, port string) (string, error
 	}
 }
 
+func IDsn(driverName, name, username, password, host, port string) string {
+	dsn, _ := Dsn(driverName, name, username, password, host, port)
+	return dsn
+}
+
+func MustDsn(driverName, name, username, password, host, port string) string {
+	dsn, err := Dsn(driverName, name, username, password, host, port)
+	if err != nil {
+		panic(err)
+	}
+	return dsn
+}
+
 func Dialector(driverName string, dsn, name, query string, prepare ...bool) (gorm.Dialector, error) {
 	needPrepare := slice.Defu(false, prepare)
-	switch driverName {
-	case "mysql":
-		if needPrepare {
-			AutoCreate(name, "mysql", dsn)
+	if driverName != "sqlite" && needPrepare {
+		dn := driverName
+		if dn == "mariadb" {
+			dn = "mysql"
 		}
+		AutoCreate(name, dn, dsn)
+	}
+	switch driverName {
+	case "mysql", "mariadb":
 		d := dsn + name
 		if query != "" {
 			d += "?" + query
 		}
 		return mysql.Open(d), nil
 	case "postgres", "postgresql":
-		if needPrepare {
-			AutoCreate(name, driverName, dsn)
-		}
 		d := dsn + " dbname=" + name
 		if query != "" {
 			d += " " + query
@@ -128,18 +160,12 @@ func Dialector(driverName string, dsn, name, query string, prepare ...bool) (gor
 		}
 		return sqlite.Open(d), nil
 	case "sqlserver", "mssql":
-		if needPrepare {
-			AutoCreate(name, driverName, dsn)
-		}
 		d := dsn + "?database=" + name
 		if query != "" {
 			d += "&" + query
 		}
 		return sqlserver.Open(d), nil
 	case "clickhouse":
-		if needPrepare {
-			AutoCreate(name, driverName, dsn)
-		}
 		d := dsn + "&database=" + name
 		if query != "" {
 			d += "&" + query
@@ -148,4 +174,17 @@ func Dialector(driverName string, dsn, name, query string, prepare ...bool) (gor
 	default:
 		return nil, fmt.Errorf("unsupported database driver: %s (supported: mysql, postgres, sqlite, sqlserver, clickhouse)", driverName)
 	}
+}
+
+func IDialector(driverName string, dsn, name, query string, prepare ...bool) gorm.Dialector {
+	d, _ := Dialector(driverName, dsn, name, query, prepare...)
+	return d
+}
+
+func MustDialector(driverName string, dsn, name, query string, prepare ...bool) gorm.Dialector {
+	d, err := Dialector(driverName, dsn, name, query, prepare...)
+	if err != nil {
+		panic(err)
+	}
+	return d
 }
