@@ -1,9 +1,10 @@
-// Package spew provides high-visibility debugging and file inspection tools.
-package spew
+// Package dbg provides high-visibility debugging and file inspection tools.
+package dbg
 
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/natholdallas/natools4go/jsons"
@@ -11,6 +12,10 @@ import (
 
 var printer func(format string, v ...any) = func(format string, v ...any) { fmt.Printf(format, v...) }
 
+// SetPrinter overrides the default output printer. It is intended to be
+// called once during initialization, before any concurrent printing begins;
+// concurrent SetPrinter/print is unsupported (the printer is read lock-free
+// on the printing hot path).
 func SetPrinter(p func(format string, v ...any)) {
 	printer = p
 }
@@ -61,12 +66,19 @@ func File(path string) {
 	}
 	defer file.Close()
 
-	// Using a dedicated buffer can be faster for large files
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		printer("%s\n", scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		printer("[SCAN-ERR] %s: %v\n", path, err)
+	// bufio.Reader has no line-length limit (bufio.Scanner truncates at 64KB),
+	// so arbitrarily long lines are printed faithfully.
+	r := bufio.NewReader(file)
+	for {
+		line, err := r.ReadString('\n')
+		if len(line) > 0 {
+			printer("%s", line)
+		}
+		if err != nil {
+			if err != io.EOF {
+				printer("[SCAN-ERR] %s: %v\n", path, err)
+			}
+			return
+		}
 	}
 }

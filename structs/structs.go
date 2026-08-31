@@ -11,13 +11,21 @@ func Map(input any) map[string]any {
 }
 
 func To[T any](input any) T {
+	v, _ := ToE[T](input)
+	return v
+}
+
+// ToE decodes input into a new T, returning the mapstructure error (if any).
+func ToE[T any](input any) (T, error) {
 	s := new(T)
-	mapstructure.Decode(input, s)
-	return *s
+	err := mapstructure.Decode(input, s)
+	return *s, err
 }
 
 func Vo[T any](input any) (T, error) {
-	s := new(T)
-	mapstructure.Decode(input, s)
-	return *s, va.Struct(*s)
+	v, err := ToE[T](input)
+	if err != nil {
+		return v, err
+	}
+	return v, va.Struct(v)
 }

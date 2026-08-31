@@ -19,6 +19,16 @@ func TestDistributeSum(t *testing.T) {
 	}
 }
 
+func TestDistribute(t *testing.T) {
+	// Negative total must not panic (rand.Intn would panic) and returns empty.
+	if v := Distribute(-5, 3); len(v) != 0 {
+		t.Errorf("Distribute(-5,3) len = %d, want 0", len(v))
+	}
+	if v := Distribute(0, 3); len(v) != 3 {
+		t.Errorf("Distribute(0,3) len = %d, want 3", len(v))
+	}
+}
+
 func TestDistributeStrict(t *testing.T) {
 	v := DistributeStrict(10, 4)
 	if len(v) != 4 {

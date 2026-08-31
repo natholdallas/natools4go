@@ -100,7 +100,7 @@ func AutoCreate(dbName, driverName, dataSourceName string) {
 	}
 }
 
-func Dsn(driverName, name, username, password, host, port string) (string, error) {
+func DSN(driverName, name, username, password, host, port string) (string, error) {
 	switch driverName {
 	case "mysql":
 		return fmt.Sprintf("%s:%s@tcp(%s:%s)/", username, password, host, port), nil
@@ -118,13 +118,13 @@ func Dsn(driverName, name, username, password, host, port string) (string, error
 	}
 }
 
-func IDsn(driverName, name, username, password, host, port string) string {
-	dsn, _ := Dsn(driverName, name, username, password, host, port)
+func IDSN(driverName, name, username, password, host, port string) string {
+	dsn, _ := DSN(driverName, name, username, password, host, port)
 	return dsn
 }
 
-func MustDsn(driverName, name, username, password, host, port string) string {
-	dsn, err := Dsn(driverName, name, username, password, host, port)
+func MustDSN(driverName, name, username, password, host, port string) string {
+	dsn, err := DSN(driverName, name, username, password, host, port)
 	if err != nil {
 		panic(err)
 	}

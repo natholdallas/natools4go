@@ -96,15 +96,39 @@ func Create[T any](tx *gorm.DB, v *T) error {
 	return tx.Create(v).Error
 }
 
+// primaryKey resolves the primary key column name for model type T,
+// defaulting to "id" when no primary key field is declared.
+func primaryKey[T any](tx *gorm.DB) (string, error) {
+	stmt := tx.Model(new(T))
+	if stmt.Statement.Schema == nil {
+		if err := stmt.Statement.Parse(new(T)); err != nil {
+			return "", err
+		}
+	}
+	pk := "id"
+	if f := stmt.Statement.Schema.PrioritizedPrimaryField; f != nil {
+		pk = f.DBName
+	}
+	return pk, nil
+}
+
 // UpdateByID update a specific record by its primary key using column and value
 func UpdateByID[T any](tx *gorm.DB, id any, column string, value any) error {
-	return tx.Model(new(T)).Where("id = ?", id).Update(column, value).Error
+	pk, err := primaryKey[T](tx)
+	if err != nil {
+		return err
+	}
+	return tx.Model(new(T)).Where(pk+" = ?", id).Update(column, value).Error
 }
 
 // UpdatesByID updates a specific record by its primary key using a map or struct.
 // It is recommended to use a map for updates to include zero-value fields (like 0, false, "").
 func UpdatesByID[T any](tx *gorm.DB, id, values any) error {
-	return tx.Model(new(T)).Where("id = ?", id).Updates(values).Error
+	pk, err := primaryKey[T](tx)
+	if err != nil {
+		return err
+	}
+	return tx.Model(new(T)).Where(pk+" = ?", id).Updates(values).Error
 }
 
 // Delete performs a batch delete for the given primary keys.

@@ -61,7 +61,11 @@ func IString(data any, pretty ...bool) string {
 
 func Map(data any) map[string]any {
 	var m map[string]any
-	json.Unmarshal([]byte(IString(data)), &m)
+	b, err := json.Marshal(data)
+	if err != nil {
+		return m
+	}
+	json.Unmarshal(b, &m)
 	return m
 }
 

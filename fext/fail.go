@@ -1,7 +1,7 @@
 package fext
 
 import (
-	"sync"
+	"sync/atomic"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -18,22 +18,22 @@ func (e *Fail) Error() string {
 }
 
 var (
-	errHandlerMu sync.RWMutex
-	errHandler   func(err error) *Fail = nil
+	errHandler atomic.Pointer[errorHandler]
 )
 
+type errorHandler struct{ fn func(err error) *Fail }
+
 func SetErrorHandler(fn func(err error) *Fail) {
-	errHandlerMu.Lock()
-	errHandler = fn
-	errHandlerMu.Unlock()
+	if fn == nil {
+		errHandler.Store(nil)
+		return
+	}
+	errHandler.Store(&errorHandler{fn})
 }
 
 func convertError(err error) error {
-	errHandlerMu.RLock()
-	fn := errHandler
-	errHandlerMu.RUnlock()
-	if fn != nil {
-		if converted := fn(err); converted != nil {
+	if h := errHandler.Load(); h != nil {
+		if converted := h.fn(err); converted != nil {
 			return converted
 		}
 	}

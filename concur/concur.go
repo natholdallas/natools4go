@@ -63,6 +63,11 @@ func Run(tasks ...func()) {
 
 // Pool is a bounded worker pool that limits the number of concurrently running
 // tasks. It is useful for throttling CPU- or IO-heavy work.
+//
+// mu guards both closed and the paired wg.Add. They must happen in the same
+// critical section: otherwise a Submit racing with Close could Add to the
+// WaitGroup after Wait has started, which is undefined behavior for
+// sync.WaitGroup. Do not replace mu with an atomic.Bool.
 type Pool struct {
 	mu      sync.Mutex
 	wg      sync.WaitGroup
@@ -82,6 +87,10 @@ func NewPool(workers int) *Pool {
 
 // Submit queues a task for execution. After Close, submissions panic to signal
 // misuse. The pool waits for all queued tasks via Wait.
+//
+// The worker token is acquired before the goroutine is spawned so the number
+// of live goroutines is bounded by the pool size; otherwise every queued task
+// would block on a separate goroutine.
 func (p *Pool) Submit(task func()) {
 	p.mu.Lock()
 	if p.closed {
@@ -91,11 +100,11 @@ func (p *Pool) Submit(task func()) {
 	p.wg.Add(1)
 	p.mu.Unlock()
 
+	p.workers <- struct{}{}
 	go func() {
 		defer p.wg.Done()
-		defer recoverPanic()
-		p.workers <- struct{}{}
 		defer func() { <-p.workers }()
+		defer recoverPanic()
 		task()
 	}()
 }

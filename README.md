@@ -34,7 +34,7 @@ Requires **Go 1.25+** (uses generics and modern stdlib features).
 | Generic DB models     | `orms.SoftModel[T]`, `orm.Model[T]`, `IDModel[T]` |
 | Fiber request binding | `fext.BodyVarser[T]` + automatic validation     |
 | Unified error response| `fext.ErrorHandler` / `fext.Fail`               |
-| JWT middleware        | `fext.Jwtware`, `fext.GenToken`, `fext.ParseToken` |
+| JWT middleware        | `fext.JWTware`, `fext.GenToken`, `fext.ParseToken` |
 | Config management     | `vipers` — typed getters + hot-reload events    |
 | Structured validation | `va.Struct` — pretty, readable field errors     |
 
@@ -47,17 +47,17 @@ Requires **Go 1.25+** (uses generics and modern stdlib features).
 | `slice`      | Generic slice utilities                                                  | `Map`, `Filter`, `ForEach`, `Defu` |
 | `maths`      | Integer math helpers                                                     | `DivCeil`, `Digits` |
 | `strs`       | String helpers & character constants                                     | `Wrap`, `ToStart/ToEnd`, `Trim*`, `FormatInt/Uint/Float/Bool` |
-| `rands`      | Randomization & distribution                                             | `Char`, `Pick`, `Distribute(Strict)`, `Digits`, `FisherYateShuffle` |
+| `rands`      | Randomization & distribution                                             | `Char`, `Pick`, `Distribute(Strict)`, `Digits`, `FisherYatesShuffle` |
 | `jsons`      | JSON marshal / nested-map traversal                                      | `Unmarshal[T]`, `IString`, `GetOK`, `Set` |
 | `va`         | Validator wrapper (`go-playground/validator/v10`)                        | `Struct`, `Var` |
 | `constraints`| Generic type constraints                                                 | `Signed`, `Unsigned`, `Integer`, `Float` |
 | `concur`     | Concurrency primitives                                                   | `Go/Run`, `Pool` (bounded), panic recovery |
 | `ask`        | Interactive CLI prompts                                                  | `Read[T]`, `Line`, `Confirm` |
-| `spew`       | Pretty debugging output                                                  | `JSON`, `Struct`, `Err`, `File` |
+| `dbg`        | Pretty debugging output                                                  | `JSON`, `Struct`, `Err`, `File` |
 | `structs`    | Map / struct conversion (`mapstructure`)                                 | `Map`, `To[T]`, `Vo[T]` (validated) |
 | `flags`      | CLI flag helpers                                                         | `Run` |
-| `vipers`     | Typed Viper config access with watch events                              | `Get[T]`, `Watch`, `Reload`, `NewUpdateEvent` |
-| `fext`       | **Fiber v3** extensions: binding, JWT, errors, cache, logging            | `BodyVarser[T]`, `Jwtware`, `ErrorHandler`, `Cache` |
+| `vipers`     | Typed Viper config access with watch events                              | `Get[T]`, `Watch`, `Reload`, `RegisterUpdateHandler` |
+| `fext`       | **Fiber v3** extensions: binding, JWT, errors, cache, logging            | `BodyVarser[T]`, `JWTware`, `ErrorHandler`, `Cache` |
 | `orms`       | **GORM** wrapper: models, pagination, sorting, typed queries             | `Query[T]`, `Paginate`, `SoftModel[T]`, `LogPreset` |
 
 ---
@@ -140,7 +140,7 @@ page, tx := orms.Paginate[User](
 ### JWT auth in three lines
 
 ```go
-app.Use(fext.Jwtware("my-secret")) // protects all following routes
+app.Use(fext.JWTware("my-secret")) // protects all following routes
 
 token, _ := fext.GenToken("user-42", "my-secret") // 30d default
 claims, err := fext.ParseToken(token, "my-secret") // HMAC enforced
@@ -177,9 +177,9 @@ err := va.Struct(SignUp{Email: "x"})
 
 ### `orms` — GORM wrapper
 
-- **Init**: `orms.New(dialector, opts...)` opens the pool, panics with context on failure.
-  Connection pool (max idle 10 / max open 100 / lifetime 30m) can be tuned afterwards.
-- **DSN builder**: `orms.Dsn(driver, name, user, pass, host, port)` and
+- **Init**: `orms.New(dialector, opts...)` opens the pool with sensible defaults
+  (max idle 10 / max open 100 / lifetime 30m), returning an error on failure.
+- **DSN builder**: `orms.DSN(driver, name, user, pass, host, port)` and
   `orms.Dialector(driver, dsn, name, query, prepare...)` cover MySQL / PostgreSQL /
   SQLite / SQL Server / ClickHouse. `prepare=true` auto-creates the database.
 - **Models**: `IDModel[T]`, `Model[T]`, `SoftModel[T]` — ready-made generic base models
@@ -206,18 +206,19 @@ err := va.Struct(SignUp{Email: "x"})
   `ErrorHandler` maps `*Fail`, `*fiber.Error`, and generic errors to proper status
   codes; `System` is surfaced only in debug mode (`SetDebugMode(true)`) and forwarded
   to `SetErrorFunc`.
-- **JWT**: `Jwtware` (HS256 middleware), `GenToken` / `ParseToken` (algorithm-confusion
-  safe — only HMAC accepted), `Jwt` struct for grouped secret management,
-  `Jwt.Claims(c)` to read the current user.
+- **JWT**: `JWTware` (HS256 middleware), `GenToken` / `ParseToken` (algorithm-confusion
+  safe — only HMAC accepted), `JWT` struct for grouped secret management,
+  `JWT.Claims(c)` to read the current user (nil when unauthenticated).
 - **Utils**: `Cache(seconds)`, `Status`/`JSON`/`SendString`, `GetAuthorization`,
-  `FmtPort`, `SetLogLevel`, and `Listen` (config-aware, nil-safe error callback).
+  and `Listen` (forwards errors to `SetErrorFunc`, or panics on startup failure).
 
 ### `vipers` — typed config
 
 Every getter accepts an optional default: `Get[T]`, `String`, `Bool`, `Int*`, `Uint*`,
 `Float64`, `Time`, `Duration`, `IntSlice`, `StringSlice`, `StringMap*`, `SizeInBytes`.
-`Watch` subscribes to file changes; handlers registered via `NewUpdateEvent` are
-deduplicated and dispatched under a lock (`Reload`).
+`Watch` subscribes to file changes; handlers registered via `RegisterUpdateHandler` are
+dispatched under a lock (`Reload`), each invoked in registration order on every
+config change.
 
 ### `concur` — concurrency done right
 
@@ -233,7 +234,7 @@ deduplicated and dispatched under a lock (`Reload`).
 ignore errors. `Map(v)` converts any value to `map[string]any`.
 `Get`/`Set`/`GetOK` traverse nested maps **without panicking** on missing keys.
 
-### `spew` — debug printing
+### `dbg` — debug printing
 
 `JSON`, `Struct`, `Err`, `Dump`, and `File` (cat-like). Customize the printer globally
 with `SetPrinter` to route output to your logger instead of stdout.
@@ -267,7 +268,7 @@ natools4go/
 ├── orms/         # GORM: models, query builder, pagination
 ├── rands/        # random strings, distribution, shuffle
 ├── slice/        # slice utilities
-├── spew/         # pretty debugging
+├── dbg/          # pretty debugging
 ├── strs/         # string helpers & constants
 ├── structs/      # mapstructure conversion
 ├── va/           # validator wrapper

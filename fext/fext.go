@@ -34,59 +34,59 @@ func TryInitialize[T any](v *T) {
 	}
 }
 
+// binder binds request data into v. It is the underlying primitive used by
+// the exported Parser helpers below.
+type binder func(c fiber.Ctx, v any) error
+
+func bindURI(c fiber.Ctx, v any) error    { return c.Bind().URI(v) }
+func bindQuery(c fiber.Ctx, v any) error  { return c.Bind().Query(v) }
+func bindBody(c fiber.Ctx, v any) error   { return c.Bind().Body(v) }
+func bindCookie(c fiber.Ctx, v any) error { return c.Bind().Cookie(v) }
+func bindHeader(c fiber.Ctx, v any) error { return c.Bind().Header(v) }
+
+// bind runs the given binder chain into a new T, runs TryInitialize, and
+// optionally validates the result with va.Struct.
+func bind[T any](c fiber.Ctx, validate bool, chain ...binder) (v T, err error) {
+	for _, b := range chain {
+		if err = b(c, &v); err != nil {
+			return
+		}
+	}
+	TryInitialize(&v)
+	if validate {
+		err = va.Struct(v)
+	}
+	return
+}
+
 // FormData binds data from all possible sources: URI parameters, Query strings, and Request Body.
 // It prioritizes BodyParser as the final override.
 func FormData[T any](c fiber.Ctx) (v T, err error) {
-	if err = c.Bind().URI(&v); err != nil {
-		return
-	}
-	if err = c.Bind().Query(&v); err != nil {
-		return
-	}
-	if err = c.Bind().Body(&v); err != nil {
-		return
-	}
-	TryInitialize(&v)
-	err = va.Struct(v)
-	return
+	return bind[T](c, true, bindURI, bindQuery, bindBody)
 }
 
 // --- Cookie Parsers ---
 
 // CookieParser binds request cookies to the provided struct type T.
 func CookieParser[T any](c fiber.Ctx) (v T, err error) {
-	err = c.Bind().Cookie(&v)
-	TryInitialize(&v)
-	return
+	return bind[T](c, false, bindCookie)
 }
 
 // CookieVarser binds request cookies to struct T and performs validation.
 func CookieVarser[T any](c fiber.Ctx) (v T, err error) {
-	if err = c.Bind().Cookie(&v); err != nil {
-		return
-	}
-	TryInitialize(&v)
-	err = va.Struct(v)
-	return
+	return bind[T](c, true, bindCookie)
 }
 
 // --- Header Parsers ---
 
 // ReqHeaderParser binds request headers to the provided struct type T.
 func ReqHeaderParser[T any](c fiber.Ctx) (v T, err error) {
-	err = c.Bind().Header(&v)
-	TryInitialize(&v)
-	return
+	return bind[T](c, false, bindHeader)
 }
 
 // ReqHeaderVarser binds request headers to struct T and performs validation.
 func ReqHeaderVarser[T any](c fiber.Ctx) (v T, err error) {
-	if err = c.Bind().Header(&v); err != nil {
-		return
-	}
-	TryInitialize(&v)
-	err = va.Struct(v)
-	return
+	return bind[T](c, true, bindHeader)
 }
 
 // BodyParser binds the request body (JSON, XML, Form, etc.) to struct T.
@@ -95,9 +95,7 @@ func ReqHeaderVarser[T any](c fiber.Ctx) (v T, err error) {
 // All JSON extenstion mime types are supported (eg. application/problem+json)
 // If none of the content types above are matched, it will return a ErrUnprocessableEntity error
 func BodyParser[T any](c fiber.Ctx) (v T, err error) {
-	err = c.Bind().Body(&v)
-	TryInitialize(&v)
-	return
+	return bind[T](c, false, bindBody)
 }
 
 // BodyVarser binds the request body to struct T and performs validation.
@@ -106,12 +104,7 @@ func BodyParser[T any](c fiber.Ctx) (v T, err error) {
 // All JSON extenstion mime types are supported (eg. application/problem+json)
 // If none of the content types above are matched, it will return a ErrUnprocessableEntity error
 func BodyVarser[T any](c fiber.Ctx) (v T, err error) {
-	if err = c.Bind().Body(&v); err != nil {
-		return
-	}
-	TryInitialize(&v)
-	err = va.Struct(v)
-	return
+	return bind[T](c, true, bindBody)
 }
 
 // --- RESTful Parsers (Params + Body) ---
@@ -119,63 +112,36 @@ func BodyVarser[T any](c fiber.Ctx) (v T, err error) {
 // RestParser binds both URI parameters and the request body to struct T.
 // Ideal for POST, PUT, and PATCH requests.
 func RestParser[T any](c fiber.Ctx) (v T, err error) {
-	if err = c.Bind().URI(&v); err != nil {
-		return
-	}
-	err = c.Bind().Body(&v)
-	TryInitialize(&v)
-	return
+	return bind[T](c, false, bindURI, bindBody)
 }
 
 // RestVarser binds URI parameters and the request body to struct T, then performs validation.
 func RestVarser[T any](c fiber.Ctx) (v T, err error) {
-	if err = c.Bind().URI(&v); err != nil {
-		return
-	}
-	if err = c.Bind().Body(&v); err != nil {
-		return
-	}
-	TryInitialize(&v)
-	err = va.Struct(v)
-	return
+	return bind[T](c, true, bindURI, bindBody)
 }
 
 // --- Query Parsers ---
 
 // QueryParser binds URL query parameters to struct T. Usually used for GET requests.
 func QueryParser[T any](c fiber.Ctx) (v T, err error) {
-	err = c.Bind().Query(&v)
-	TryInitialize(&v)
-	return
+	return bind[T](c, false, bindQuery)
 }
 
 // QueryVarser binds URL query parameters to struct T and performs validation.
 func QueryVarser[T any](c fiber.Ctx) (v T, err error) {
-	if err = c.Bind().Query(&v); err != nil {
-		return
-	}
-	TryInitialize(&v)
-	err = va.Struct(v)
-	return
+	return bind[T](c, true, bindQuery)
 }
 
 // --- URI Param Parsers ---
 
 // ParamsParser binds URI route parameters to struct T.
 func ParamsParser[T any](c fiber.Ctx) (v T, err error) {
-	err = c.Bind().URI(&v)
-	TryInitialize(&v)
-	return
+	return bind[T](c, false, bindURI)
 }
 
 // ParamsVarser binds URI route parameters to struct T and performs validation.
 func ParamsVarser[T any](c fiber.Ctx) (v T, err error) {
-	if err = c.Bind().URI(&v); err != nil {
-		return
-	}
-	TryInitialize(&v)
-	err = va.Struct(v)
-	return
+	return bind[T](c, true, bindURI)
 }
 
 // --- Response Helpers ---

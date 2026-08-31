@@ -55,13 +55,13 @@ type Sorter struct {
 // Scope applies the sorting condition to the GORM transaction.
 func (s *Sorter) Scope(tx *gorm.DB) *gorm.DB {
 	if s.Column != "" {
-		return tx.Order(s.Conv())
+		return tx.Order(s.ToOrderBy())
 	}
 	return tx
 }
 
-// Conv converts the Sorter to a GORM OrderByColumn expression.
-func (s *Sorter) Conv() clause.OrderByColumn {
+// ToOrderBy converts the Sorter to a GORM OrderByColumn expression.
+func (s *Sorter) ToOrderBy() clause.OrderByColumn {
 	return clause.OrderByColumn{Column: clause.Column{Name: s.Column}, Desc: s.Desc}
 }
 
@@ -73,16 +73,16 @@ type Sorters struct {
 // Scope applies multiple sorting conditions to the GORM transaction.
 func (s *Sorters) Scope(tx *gorm.DB) *gorm.DB {
 	if len(s.Columns) > 0 {
-		return tx.Order(clause.OrderBy{Columns: s.Conv()})
+		return tx.Order(clause.OrderBy{Columns: s.ToOrderBy()})
 	}
 	return tx
 }
 
-// Conv converts Sorters into a slice of GORM OrderByColumn expressions.
-func (s *Sorters) Conv() []clause.OrderByColumn {
+// ToOrderBy converts Sorters into a slice of GORM OrderByColumn expressions.
+func (s *Sorters) ToOrderBy() []clause.OrderByColumn {
 	v := make([]clause.OrderByColumn, 0, len(s.Columns))
 	for i := range s.Columns {
-		v = append(v, s.Columns[i].Conv())
+		v = append(v, s.Columns[i].ToOrderBy())
 	}
 	return v
 }
@@ -134,7 +134,10 @@ func Paginate[T any](tx *gorm.DB, pagination Pagination) (Page[T], *gorm.DB) {
 	total := int64(0)
 	content := []T{}
 	tx = tx.Count(&total).Scopes(pagination.Scope).Find(&content)
-	page := maths.DivCeil(total, int64(pagination.Size))
+	// Compute the page count from the normalized size (the same value the
+	// scope applies) so Size=0 or oversized values yield a consistent page.
+	_, size := pagination.normalize()
+	page := maths.DivCeil(total, int64(size))
 	v := Page[T]{total, page, content}
 	return v, tx
 }

@@ -1,11 +1,11 @@
 package rands
 
 import (
-	"math/rand"
+	"math/rand/v2"
 )
 
-// FisherYateShuffle shuffle the array, use fisher yate algorithm
-func FisherYateShuffle[T any](arr []T) {
+// FisherYatesShuffle shuffle the array, use fisher yate algorithm
+func FisherYatesShuffle[T any](arr []T) {
 	if len(arr) <= 1 {
 		return
 	}

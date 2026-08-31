@@ -116,6 +116,55 @@ func TestPaginate(t *testing.T) {
 	}
 }
 
+func TestPaginateNormalizedSize(t *testing.T) {
+	db := newTestDB(t)
+	_ = db.AutoMigrate(&user{})
+	seedUsers(t, db, []string{"a", "b", "c", "d", "e"})
+
+	// Size=0 is normalized to 20 by the scope, so the page count must be
+	// computed against 20 (regression: it used the raw size 0).
+	page, _ := QE[user](db).Paginate(Pagination{Page: 1, Size: 0})
+	if page.Page != 1 {
+		t.Errorf("Page with Size=0 = %d, want 1", page.Page)
+	}
+
+	// Oversized Size is clamped to 100; the page count must match.
+	page, _ = QE[user](db).Paginate(Pagination{Page: 1, Size: 200})
+	if page.Page != 1 {
+		t.Errorf("Page with Size=200 = %d, want 1", page.Page)
+	}
+	if len(page.Content) != 5 {
+		t.Errorf("Content len = %d, want 5", len(page.Content))
+	}
+}
+
+type codeUser struct {
+	Code string `gorm:"column:code;primaryKey"`
+	Name string
+}
+
+func TestUpdateByIDCustomPrimaryKey(t *testing.T) {
+	db := newTestDB(t)
+	if err := db.AutoMigrate(&codeUser{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := Create(db, &codeUser{Code: "u-1", Name: "alice"}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// Regression: UpdateByID used to hardcode "id" as the primary key,
+	// silently no-op on models whose PK has a different column name.
+	if err := UpdateByID[codeUser](db, "u-1", "name", "bob"); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	got, err := First[codeUser](db, "code = ?", "u-1")
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if got.Name != "bob" {
+		t.Errorf("name = %q, want bob", got.Name)
+	}
+}
+
 func TestPaginationScopeSideEffectFree(t *testing.T) {
 	db := newTestDB(t)
 	_ = db.AutoMigrate(&user{})
@@ -177,7 +226,7 @@ func TestLogPreset(t *testing.T) {
 	}
 }
 
-func TestDsn(t *testing.T) {
+func TestDSN(t *testing.T) {
 	cases := []struct {
 		driver string
 		want   string
@@ -189,16 +238,16 @@ func TestDsn(t *testing.T) {
 		{"clickhouse", "tcp://h:1?username=u&password=p"},
 	}
 	for _, c := range cases {
-		got, err := Dsn(c.driver, "db", "u", "p", "h", "1")
+		got, err := DSN(c.driver, "db", "u", "p", "h", "1")
 		if err != nil {
-			t.Errorf("Dsn(%s) error: %v", c.driver, err)
+			t.Errorf("DSN(%s) error: %v", c.driver, err)
 			continue
 		}
 		if got != c.want {
-			t.Errorf("Dsn(%s) = %q, want %q", c.driver, got, c.want)
+			t.Errorf("DSN(%s) = %q, want %q", c.driver, got, c.want)
 		}
 	}
-	if _, err := Dsn("unknown", "db", "u", "p", "h", "1"); err == nil {
+	if _, err := DSN("unknown", "db", "u", "p", "h", "1"); err == nil {
 		t.Error("expected error for unsupported driver")
 	}
 }

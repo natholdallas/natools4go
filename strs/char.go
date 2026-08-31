@@ -10,13 +10,13 @@ const (
 	Slash            = "/"
 	ForwardSlash     = Slash
 	Comma            = ","
-	Strike           = "-"
-	Dash             = Strike
-	Minus            = Strike
+	Hyphen           = "-"
+	Dash             = Hyphen
+	Minus            = Hyphen
 	Space            = " "
 	Colon            = ":"
 	Equal            = "="
-	Under            = "_"
+	Underscore       = "_"
 	Hash             = "#"
 	At               = "@"
 	Dollar           = "$"

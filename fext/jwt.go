@@ -9,19 +9,19 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Jwtware initializes a Gofiber middleware to protect routes using JWT.
+// JWTware initializes a Gofiber middleware to protect routes using JWT.
 // It uses the standard HS256 signing method and RegisteredClaims.
-func Jwtware(secretKey string) fiber.Handler {
+func JWTware(secretKey string) fiber.Handler {
 	return jwtware.New(jwtware.Config{
 		SigningKey:   jwtware.SigningKey{Key: []byte(secretKey)},
-		ErrorHandler: JwtErrorHandler,
+		ErrorHandler: JWTErrorHandler,
 		Claims:       &jwt.RegisteredClaims{},
 	})
 }
 
-// JwtErrorHandler is a specialized error handler for JWT middleware.
+// JWTErrorHandler is a specialized error handler for JWT middleware.
 // It captures authentication errors and returns a 401 Unauthorized status.
-func JwtErrorHandler(c fiber.Ctx, err error) error {
+func JWTErrorHandler(c fiber.Ctx, err error) error {
 	return fiber.NewError(fiber.StatusUnauthorized, err.Error())
 }
 
@@ -51,37 +51,38 @@ func ParseToken(token, secretKey string) (claims jwt.RegisteredClaims, err error
 	return claims, err
 }
 
-// Jwt represents a managed JWT environment, coupling the secret key with its middleware.
-type Jwt struct {
+// JWT represents a managed JWT environment, coupling the secret key with its middleware.
+type JWT struct {
 	SecretKey  string
 	Middleware fiber.Handler
 }
 
-// NewJwt initializes a new Jwt manager with the given secret key.
-func NewJwt(secretKey string) Jwt {
-	return Jwt{secretKey, Jwtware(secretKey)}
+// NewJWT initializes a new JWT manager with the given secret key.
+func NewJWT(secretKey string) JWT {
+	return JWT{secretKey, JWTware(secretKey)}
 }
 
-// GenToken is a method wrapper for generating a token using the Jwt instance's secret key.
-func (j *Jwt) GenToken(ID string, endtime ...time.Duration) (string, error) {
+// GenToken is a method wrapper for generating a token using the JWT instance's secret key.
+func (j *JWT) GenToken(ID string, endtime ...time.Duration) (string, error) {
 	return GenToken(ID, j.SecretKey, endtime...)
 }
 
-// ParseToken is a method wrapper for parsing a token using the Jwt instance's secret key.
-func (j *Jwt) ParseToken(token string) (jwt.RegisteredClaims, error) {
+// ParseToken is a method wrapper for parsing a token using the JWT instance's secret key.
+func (j *JWT) ParseToken(token string) (jwt.RegisteredClaims, error) {
 	return ParseToken(token, j.SecretKey)
 }
 
 // Claims retrieves the JWT RegisteredClaims from the Fiber context.
-// This should be called on routes protected by the Jwt instance's middleware.
-func (j *Jwt) Claims(c fiber.Ctx) *jwt.RegisteredClaims {
+// It returns nil if the request is not authenticated or the claims are not
+// the expected type, so callers can distinguish "no user" from "empty claims".
+func (j *JWT) Claims(c fiber.Ctx) *jwt.RegisteredClaims {
 	token := jwtware.FromContext(c)
-	if token != nil {
-		if token.Claims != nil {
-			if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok {
-				return claims
-			}
-		}
+	if token == nil || token.Claims == nil {
+		return nil
 	}
-	return &jwt.RegisteredClaims{}
+	claims, ok := token.Claims.(*jwt.RegisteredClaims)
+	if !ok {
+		return nil
+	}
+	return claims
 }

@@ -137,12 +137,6 @@ func TestGetAuthorizationNoScheme(t *testing.T) {
 	}
 }
 
-func TestFmtPort(t *testing.T) {
-	if got := FmtPort(8080); got != ":8080" {
-		t.Errorf("FmtPort = %q, want :8080", got)
-	}
-}
-
 func TestJSONAndStatus(t *testing.T) {
 	app := fiber.New()
 	app.Get("/", func(c fiber.Ctx) error {
@@ -175,3 +169,4 @@ func readBody(resp *http.Response) string {
 	defer resp.Body.Close()
 	return strings.TrimSpace(string(data))
 }
+

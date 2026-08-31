@@ -1,4 +1,4 @@
-package spew
+package dbg
 
 import (
 	"fmt"
@@ -26,7 +26,7 @@ func capture() {
 	SetPrinter(func(format string, v ...any) {
 		outMu.Lock()
 		defer outMu.Unlock()
-		out.WriteString(fmt.Sprintf(format, v...))
+		fmt.Fprintf(&out, format, v)
 	})
 }
 
@@ -86,6 +86,22 @@ func TestFileMissing(t *testing.T) {
 	got := readOut()
 	if !strings.Contains(got, "[FILE-ERR]") {
 		t.Errorf("missing file should print [FILE-ERR], got %q", got)
+	}
+}
+
+func TestFileLongLine(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "long.txt")
+	// >64KB line: bufio.Scanner would truncate this; the fix must not.
+	long := strings.Repeat("x", 70*1024) + "\n"
+	if err := os.WriteFile(path, []byte(long), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	capture()
+	File(path)
+	got := readOut()
+	if got != long {
+		t.Errorf("long line truncated: got %d bytes, want %d", len(got), len(long))
 	}
 }
 

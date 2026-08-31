@@ -4,7 +4,7 @@ package rands
 import (
 	"fmt"
 	"math/big"
-	"math/rand"
+	"math/rand/v2"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,7 +16,7 @@ var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 // Distribute splits a number into 'parts' random integers that sum up to 'number'.
 // It uses the "Dividers" algorithm (Bars and Stars).
 func Distribute(total, parts int) []int {
-	if parts <= 0 {
+	if parts <= 0 || total < 0 {
 		return []int{}
 	}
 	if parts == 1 {
@@ -25,7 +25,7 @@ func Distribute(total, parts int) []int {
 	// Generate random split points
 	dividers := make([]int, parts-1)
 	for i := 0; i < parts-1; i++ {
-		dividers[i] = rand.Intn(total + 1) // +1 allows zero values
+		dividers[i] = rand.IntN(total + 1) // +1 allows zero values
 	}
 	sort.Ints(dividers)
 
@@ -56,12 +56,17 @@ func DistributeStrict(total, parts int) []int {
 }
 
 // Digits extracts 'length' random digits from a large number after shuffling.
+// The sign (if any) is discarded before shuffling so the '-' cannot land in
+// the middle of the result.
 func Digits(num *big.Int, length int) (int, error) {
 	digits := []byte(num.String())
+	if len(digits) > 0 && digits[0] == '-' {
+		digits = digits[1:]
+	}
 	if length < 1 || length > len(digits) {
 		return 0, fmt.Errorf("length %d out of range [1, %d]", length, len(digits))
 	}
-	FisherYateShuffle(digits)
+	FisherYatesShuffle(digits)
 	return strconv.Atoi(string(digits[:length]))
 }
 
@@ -73,7 +78,7 @@ func BetweenTime(start, end time.Time) time.Time {
 		return start
 	}
 	delta := max - min
-	return time.Unix(0, min+rand.Int63n(delta))
+	return time.Unix(0, min+rand.Int64N(delta))
 }
 
 // Char generates a random alphanumeric string of the specified length.
@@ -82,7 +87,7 @@ func Char(length int) string {
 	var b strings.Builder
 	b.Grow(length) // Pre-allocate memory to avoid multiple reallocations
 	for range length {
-		b.WriteByte(alphabet[rand.Intn(len(alphabet))]) // Directly write the byte to avoid string(char) conversion cost
+		b.WriteByte(alphabet[rand.IntN(len(alphabet))]) // Directly write the byte to avoid string(char) conversion cost
 	}
 	return b.String()
 }
@@ -93,5 +98,5 @@ func Pick[T any](list []T) T {
 		var zero T
 		return zero
 	}
-	return list[rand.Intn(len(list))]
+	return list[rand.IntN(len(list))]
 }

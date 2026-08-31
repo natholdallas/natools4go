@@ -69,7 +69,7 @@ func TestGetGeneric(t *testing.T) {
 func TestReloadDispatches(t *testing.T) {
 	setup(t)
 	var calls atomic.Int32
-	NewUpdateEvent(func(e fsnotify.Event) { calls.Add(1) })
+	RegisterUpdateHandler(func(e fsnotify.Event) { calls.Add(1) })
 
 	Reload(fsnotify.Event{Name: "app.toml"})
 	Reload(fsnotify.Event{Name: "app.toml"})
@@ -79,9 +79,9 @@ func TestReloadDispatches(t *testing.T) {
 	}
 }
 
-func TestNewUpdateEventSkipsNil(t *testing.T) {
+func TestRegisterUpdateHandlerSkipsNil(t *testing.T) {
 	setup(t)
-	NewUpdateEvent(nil)
+	RegisterUpdateHandler(nil)
 	Reload(fsnotify.Event{})
 	// No panic is the assertion.
 }
