@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/natholdallas/natools4go/narder"
 )
 
 func newTestApp() *fiber.App {
@@ -71,8 +72,8 @@ type plainErr struct{ msg string }
 func (e *plainErr) Error() string { return e.msg }
 
 func TestErrorHandlerSystemHiddenInProd(t *testing.T) {
-	SetDebugMode(false)
-	defer SetDebugMode(false)
+	narder.SetDebugMode(false)
+	defer narder.SetDebugMode(false)
 	app := newTestApp()
 	app.Get("/", func(c fiber.Ctx) error {
 		return &Fail{Status: 500, Message: "internal", System: &plainErr{"secret-detail"}}
@@ -88,8 +89,8 @@ func TestErrorHandlerSystemHiddenInProd(t *testing.T) {
 }
 
 func TestErrorHandlerSystemShownInDebug(t *testing.T) {
-	SetDebugMode(true)
-	defer SetDebugMode(true)
+	narder.SetDebugMode(true)
+	defer narder.SetDebugMode(true)
 	app := newTestApp()
 	app.Get("/", func(c fiber.Ctx) error {
 		return &Fail{Status: 500, Message: "internal", System: &plainErr{"secret-detail"}}

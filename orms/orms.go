@@ -60,7 +60,7 @@ func MustNew(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 }
 
 func LogPreset(out io.Writer, level logger.LogLevel) logger.Interface {
-	return logger.New(log.New(out, "[DB] ", log.Ldate|log.Ltime), logger.Config{
+	return logger.New(log.New(out, "[DB] ", log.LstdFlags), logger.Config{
 		SlowThreshold:             200 * time.Millisecond,
 		LogLevel:                  level,
 		IgnoreRecordNotFoundError: true,

@@ -1,38 +1,28 @@
 package dbg
 
 import (
-	"fmt"
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
+
+	"github.com/natholdallas/natools4go/narder"
 )
 
 type testError struct{ msg string }
 
 func (e *testError) Error() string { return e.msg }
 
-var (
-	outMu sync.Mutex
-	out   strings.Builder
-)
+var out bytes.Buffer
 
-// capture routes the printer into a buffer for assertions.
+// capture redirects narder output into a buffer for assertions.
 func capture() {
-	outMu.Lock()
 	out.Reset()
-	outMu.Unlock()
-	SetPrinter(func(format string, v ...any) {
-		outMu.Lock()
-		defer outMu.Unlock()
-		fmt.Fprintf(&out, format, v)
-	})
+	narder.SetOutput(&out)
 }
 
 func readOut() string {
-	outMu.Lock()
-	defer outMu.Unlock()
 	return out.String()
 }
 
@@ -100,8 +90,8 @@ func TestFileLongLine(t *testing.T) {
 	capture()
 	File(path)
 	got := readOut()
-	if got != long {
-		t.Errorf("long line truncated: got %d bytes, want %d", len(got), len(long))
+	if !strings.Contains(got, long) {
+		t.Errorf("long line truncated: got %d bytes, want to contain %d", len(got), len(long))
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/natholdallas/natools4go/narder"
 )
 
 type Fail struct {
@@ -17,9 +18,7 @@ func (e *Fail) Error() string {
 	return e.Message
 }
 
-var (
-	errHandler atomic.Pointer[errorHandler]
-)
+var errHandler atomic.Pointer[errorHandler]
 
 type errorHandler struct{ fn func(err error) *Fail }
 
@@ -60,7 +59,7 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 
 		// Handle system error visibility and logging
 		if e.System != nil {
-			if isDebug() {
+			if narder.IsDebug() {
 				// Convert error to string for reliable JSON serialization
 				if sysErr, ok := e.System.(error); ok {
 					resp.System = sysErr.Error()
@@ -69,7 +68,7 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 				}
 			}
 			if sysErr, ok := e.System.(error); ok {
-				onError(sysErr)
+				narder.Error(sysErr)
 			}
 		}
 

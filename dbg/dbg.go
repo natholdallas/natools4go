@@ -1,30 +1,22 @@
 // Package dbg provides high-visibility debugging and file inspection tools.
+// All output is routed through the shared narder logger; call sites are
+// resolved automatically to the caller of these functions.
 package dbg
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 
 	"github.com/natholdallas/natools4go/jsons"
+	"github.com/natholdallas/natools4go/narder"
 )
 
-var printer func(format string, v ...any) = func(format string, v ...any) { fmt.Printf(format, v...) }
-
-// SetPrinter overrides the default output printer. It is intended to be
-// called once during initialization, before any concurrent printing begins;
-// concurrent SetPrinter/print is unsupported (the printer is read lock-free
-// on the printing hot path).
-func SetPrinter(p func(format string, v ...any)) {
-	printer = p
-}
-
-// Err prints each non-nil error from the provided slice to standard output.
+// Err prints each non-nil error from the provided slice at ERROR level.
 func Err(errs ...error) {
 	for _, err := range errs {
 		if err != nil {
-			printer("[ERROR] %v\n", err)
+			narder.Error(err)
 		}
 	}
 }
@@ -41,10 +33,10 @@ func JSON(v ...any) {
 	for _, i := range v {
 		d, err := jsons.String(i, true)
 		if err != nil {
-			printer("[JSON-FAIL] %v\n", err)
+			narder.Errorf("[JSON-FAIL] %v", err)
 			continue
 		}
-		printer("%s\n", d)
+		narder.Info(d)
 	}
 }
 
@@ -52,16 +44,16 @@ func JSON(v ...any) {
 // which includes field names for structs.
 func Struct(v ...any) {
 	for _, i := range v {
-		printer("%+v\n", i)
+		narder.Infof("%+v", i)
 	}
 }
 
-// File reads the file at the specified path and prints its content to standard output,
-// behaving similarly to the Unix 'cat' command.
+// File reads the file at the specified path and prints its content, behaving
+// similarly to the Unix 'cat' command.
 func File(path string) {
 	file, err := os.Open(path)
 	if err != nil {
-		printer("[FILE-ERR] %s: %v\n", path, err)
+		narder.Errorf("[FILE-ERR] %s: %v", path, err)
 		return // Crucial: stop execution to avoid nil pointer panic
 	}
 	defer file.Close()
@@ -72,11 +64,11 @@ func File(path string) {
 	for {
 		line, err := r.ReadString('\n')
 		if len(line) > 0 {
-			printer("%s", line)
+			narder.Info(line)
 		}
 		if err != nil {
 			if err != io.EOF {
-				printer("[SCAN-ERR] %s: %v\n", path, err)
+				narder.Errorf("[SCAN-ERR] %s: %v", path, err)
 			}
 			return
 		}

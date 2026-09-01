@@ -59,6 +59,7 @@ Requires **Go 1.25+** (uses generics and modern stdlib features).
 | `vipers`     | Typed Viper config access with watch events                              | `Get[T]`, `Watch`, `Reload`, `RegisterUpdateHandler` |
 | `fext`       | **Fiber v3** extensions: binding, JWT, errors, cache, logging            | `BodyVarser[T]`, `JWTware`, `ErrorHandler`, `Cache` |
 | `orms`       | **GORM** wrapper: models, pagination, sorting, typed queries             | `Query[T]`, `Paginate`, `SoftModel[T]`, `LogPreset` |
+| `narder`     | Tiny leveled logger shared across the toolkits                          | `Info/Infof`, `Warn/Warnf`, `Error/Errorf`, `SetPrinter` |
 
 ---
 
@@ -204,13 +205,14 @@ err := va.Struct(SignUp{Email: "x"})
   `Initializer` to run after binding.
 - **Errors**: `fext.Fail{Status, Code, Message, System}` — returns a clean JSON body.
   `ErrorHandler` maps `*Fail`, `*fiber.Error`, and generic errors to proper status
-  codes; `System` is surfaced only in debug mode (`SetDebugMode(true)`) and forwarded
+  codes; `System` is surfaced only in debug mode (`narder.SetDebugMode(true)`) and forwarded
   to `SetErrorFunc`.
 - **JWT**: `JWTware` (HS256 middleware), `GenToken` / `ParseToken` (algorithm-confusion
   safe — only HMAC accepted), `JWT` struct for grouped secret management,
   `JWT.Claims(c)` to read the current user (nil when unauthenticated).
 - **Utils**: `Cache(seconds)`, `Status`/`JSON`/`SendString`, `GetAuthorization`,
-  and `Listen` (forwards errors to `SetErrorFunc`, or panics on startup failure).
+  and `Listen` (logs startup failures via `narder`, forwards errors to
+  `SetErrorFunc`, or panics on startup failure).
 
 ### `vipers` — typed config
 
@@ -236,8 +238,31 @@ ignore errors. `Map(v)` converts any value to `map[string]any`.
 
 ### `dbg` — debug printing
 
-`JSON`, `Struct`, `Err`, `Dump`, and `File` (cat-like). Customize the printer globally
-with `SetPrinter` to route output to your logger instead of stdout.
+`JSON`, `Struct`, `Err`, `Dump`, and `File` (cat-like). Output goes through the
+shared `narder` logger; call sites are resolved to the caller of these
+functions, not to internal library frames.
+
+### `narder` — shared leveled logger
+
+A minimal `Info`/`Warn`/`Error` logger used by `dbg`, `fext`, and `vipers`.
+
+```go
+narder.Infof("user %d signed in", id)
+narder.Error("db unavailable")
+
+// Route everything through your own backend
+narder.SetPrinter(func(level, file string, line int, msg string) {
+    slog.Info(msg, "level", level, "file", file, "line", line)
+})
+
+// Or tune the stdlib backend (default: stderr, Ldate|Ltime)
+narder.SetOutput(file)
+narder.SetFlags(log.Lshortfile) // file:line of YOUR call site
+```
+
+Call-site resolution skips every frame inside the natools4go module, so even
+wrapped calls (e.g. `dbg.Dump`) report the caller's position — not the library
+internals.
 
 ---
 
@@ -265,6 +290,7 @@ natools4go/
 ├── flags/        # CLI flag helpers
 ├── jsons/        # JSON marshal + nested map helpers
 ├── maths/        # integer math
+├── narder/       # tiny leveled logger (Info/Warn/Error)
 ├── orms/         # GORM: models, query builder, pagination
 ├── rands/        # random strings, distribution, shuffle
 ├── slice/        # slice utilities
