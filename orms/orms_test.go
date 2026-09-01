@@ -30,8 +30,20 @@ type user struct {
 	Email string
 }
 
-func TestMigrateAndCRUD(t *testing.T) {
-	db := newTestDB(t)
+func TestValidateDBName(t *testing.T) {
+	for _, ok := range []string{"app", "my_db", "MyDB1", "a_b_c"} {
+		if err := validateDBName(ok); err != nil {
+			t.Errorf("validateDBName(%q) = %v, want nil", ok, err)
+		}
+	}
+	for _, bad := range []string{"", "a b", "app;DROP TABLE x", "a-b", "1abc", "app\" OR 1=1", "db."} {
+		if err := validateDBName(bad); err == nil {
+			t.Errorf("validateDBName(%q) = nil, want error", bad)
+		}
+	}
+}
+
+func TestMigrateAndCRUD(t *testing.T) {	db := newTestDB(t)
 	if err := db.AutoMigrate(&user{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
@@ -188,6 +200,33 @@ func TestSorters(t *testing.T) {
 	}
 	if list[0].Age < list[len(list)-1].Age {
 		t.Error("expected descending sort")
+	}
+}
+
+func TestSorterColumnValidation(t *testing.T) {
+	for _, ok := range []string{"id", "created_at", "Name", "a1"} {
+		if !validColumn(ok) {
+			t.Errorf("validColumn(%q) = false, want true", ok)
+		}
+	}
+	for _, bad := range []string{"", "age;DROP", "a b", "1x", "col.name"} {
+		if validColumn(bad) {
+			t.Errorf("validColumn(%q) = true, want false", bad)
+		}
+	}
+
+	db := newTestDB(t)
+	_ = db.AutoMigrate(&user{})
+	seedUsers(t, db, []string{"a", "b", "c"})
+
+	// An invalid sort column must be ignored (no error, no injection).
+	s := Sorter{Column: "age DESC; DROP TABLE users; --"}
+	got, err := QE[user](db).Scopes(s.Scope).Find()
+	if err != nil {
+		t.Fatalf("find with invalid sorter: %v", err)
+	}
+	if len(got) != 3 {
+		t.Errorf("got %d users, want 3", len(got))
 	}
 }
 

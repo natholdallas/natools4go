@@ -138,6 +138,29 @@ func TestGetAuthorizationNoScheme(t *testing.T) {
 	}
 }
 
+func TestGetAuthorizationCaseInsensitiveNoLeadingSpace(t *testing.T) {
+	app := fiber.New()
+	app.Get("/", func(c fiber.Ctx) error {
+		return c.SendString(GetAuthorization(c))
+	})
+	for _, tc := range []struct{ in, want string }{
+		{"bearer abc123", "abc123"},
+		{"Bearer abc123", "abc123"},
+		{"bearer  abc123", "abc123"}, // double space
+		{"Bearer   abc123", "abc123"},
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set(fiber.HeaderAuthorization, tc.in)
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("app.Test: %v", err)
+		}
+		if body := readBody(resp); body != tc.want {
+			t.Errorf("GetAuthorization(%q) = %q, want %q", tc.in, body, tc.want)
+		}
+	}
+}
+
 func TestJSONAndStatus(t *testing.T) {
 	app := fiber.New()
 	app.Get("/", func(c fiber.Ctx) error {

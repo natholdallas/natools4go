@@ -54,10 +54,30 @@ type Sorter struct {
 
 // Scope applies the sorting condition to the GORM transaction.
 func (s *Sorter) Scope(tx *gorm.DB) *gorm.DB {
-	if s.Column != "" {
+	if s.Valid() {
 		return tx.Order(s.ToOrderBy())
 	}
 	return tx
+}
+
+// Valid reports whether the column is a safe bare identifier. This prevents
+// user-supplied sort columns (bound via `query:"column"`) from injecting
+// arbitrary SQL or referencing unknown columns.
+func (s *Sorter) Valid() bool {
+	return validColumn(s.Column)
+}
+
+func validColumn(col string) bool {
+	if col == "" {
+		return false
+	}
+	for i, r := range col {
+		if r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (i > 0 && r >= '0' && r <= '9') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // ToOrderBy converts the Sorter to a GORM OrderByColumn expression.
@@ -72,17 +92,20 @@ type Sorters struct {
 
 // Scope applies multiple sorting conditions to the GORM transaction.
 func (s *Sorters) Scope(tx *gorm.DB) *gorm.DB {
-	if len(s.Columns) > 0 {
-		return tx.Order(clause.OrderBy{Columns: s.ToOrderBy()})
+	if cols := s.ToOrderBy(); len(cols) > 0 {
+		return tx.Order(clause.OrderBy{Columns: cols})
 	}
 	return tx
 }
 
 // ToOrderBy converts Sorters into a slice of GORM OrderByColumn expressions.
+// Columns that fail validation are skipped.
 func (s *Sorters) ToOrderBy() []clause.OrderByColumn {
 	v := make([]clause.OrderByColumn, 0, len(s.Columns))
 	for i := range s.Columns {
-		v = append(v, s.Columns[i].ToOrderBy())
+		if s.Columns[i].Valid() {
+			v = append(v, s.Columns[i].ToOrderBy())
+		}
 	}
 	return v
 }
@@ -101,9 +124,16 @@ func (s *Pagination) Scope(db *gorm.DB) *gorm.DB {
 	return db.Offset(offset).Limit(size)
 }
 
+// maxPage bounds the requested page to keep (page-1)*size from overflowing int
+// on 32-bit platforms with the maximum size (100).
+const maxPage = 1_000_000
+
 // normalize returns sanitized page/size values without mutating the receiver.
 func (s *Pagination) normalize() (page, size int) {
 	page = max(s.Page, 1)
+	if page > maxPage {
+		page = maxPage
+	}
 	size = s.Size
 	if size < 1 {
 		size = 20
@@ -122,7 +152,7 @@ type Page[T any] struct {
 
 // PaginateMapping transforms the content of a Page from type T to E using a conversion function.
 func PaginateMapping[T, E any](page Page[T], conv func(v T) E) Page[E] {
-	converts := []E{}
+	converts := make([]E, 0, len(page.Content))
 	for i := range page.Content {
 		converts = append(converts, conv(page.Content[i]))
 	}

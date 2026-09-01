@@ -4,11 +4,9 @@ import (
 	"math/rand/v2"
 )
 
-// FisherYatesShuffle shuffle the array, use fisher yate algorithm
+// FisherYatesShuffle shuffles the slice in place using the Fisher-Yates
+// algorithm. Empty and single-element slices are no-ops (handled by rand.Shuffle).
 func FisherYatesShuffle[T any](arr []T) {
-	if len(arr) <= 1 {
-		return
-	}
 	rand.Shuffle(len(arr), func(i, j int) {
 		arr[i], arr[j] = arr[j], arr[i]
 	})

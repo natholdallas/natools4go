@@ -174,8 +174,8 @@ func GetAuthorization(c fiber.Ctx, scheme ...string) string {
 	}
 	prefix := strs.ToEnd(slice.Defu("Bearer ", scheme), strs.Space)
 	// Case-insensitive prefix removal for better compatibility
-	if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-		return auth[len(prefix):]
+	if len(auth) >= len(prefix) && strings.EqualFold(auth[:len(prefix)], prefix) {
+		return strings.TrimSpace(auth[len(prefix):])
 	}
 	return auth
 }

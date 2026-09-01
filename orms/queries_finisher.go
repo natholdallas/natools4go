@@ -31,8 +31,7 @@ func (q *Query[T]) First(conds ...any) (T, error) {
 // IFirst finds the first record ordered by primary key
 // matching given conditions conds, if not found it will return a zero value
 func (q *Query[T]) IFirst(conds ...any) T {
-	var v T
-	q.db.First(&v, conds...)
+	v, _ := q.First(conds...)
 	return v
 }
 
@@ -46,8 +45,7 @@ func (q *Query[T]) Take(conds ...any) (T, error) {
 // ITake finds the first record returned by the database in no specified order
 // matching given conditions conds, if not found it will return a zero value
 func (q *Query[T]) ITake(conds ...any) T {
-	var v T
-	q.db.Take(&v, conds...)
+	v, _ := q.Take(conds...)
 	return v
 }
 
@@ -61,8 +59,7 @@ func (q *Query[T]) Last(conds ...any) (T, error) {
 // ILast finds the last record ordered by primary key
 // matching given conditions conds, if not found it will return a zero value
 func (q *Query[T]) ILast(conds ...any) T {
-	var v T
-	q.db.Last(&v, conds...)
+	v, _ := q.Last(conds...)
 	return v
 }
 
@@ -75,8 +72,7 @@ func (q *Query[T]) Find(conds ...any) ([]T, error) {
 
 // IFind finds all records
 func (q *Query[T]) IFind(conds ...any) []T {
-	var v []T
-	q.db.Find(&v, conds...)
+	v, _ := q.Find(conds...)
 	return v
 }
 
@@ -89,8 +85,7 @@ func (q *Query[T]) FindInBatches(batchSize int, fc func(tx *gorm.DB, batch int) 
 
 // IFindInBatches finds all records in batches of batchSize
 func (q *Query[T]) IFindInBatches(batchSize int, fc func(tx *gorm.DB, batch int) error) []T {
-	var v []T
-	q.db.FindInBatches(&v, batchSize, fc)
+	v, _ := q.FindInBatches(batchSize, fc)
 	return v
 }
 
@@ -155,10 +150,8 @@ func (q *Query[T]) UpdateColumns(values any) (tx *gorm.DB) {
 // Delete deletes value matching given conditions. If value contains primary key it is included in the conditions. If
 // value includes a deleted_at field, then Delete performs a soft delete instead by setting deleted_at with the current
 // time if null.
-func (q *Query[T]) Delete(conds ...any) (T, error) {
-	v := new(T)
-	err := q.db.Delete(v, conds...).Error
-	return *v, err
+func (q *Query[T]) Delete(conds ...any) error {
+	return q.db.Delete(new(T), conds...).Error
 }
 
 func (q *Query[T]) Count() int64 {

@@ -16,8 +16,7 @@ func Unmarshal[T any](bytes []byte) (T, error) {
 }
 
 func IUnmarshal[T any](bytes []byte) T {
-	var v T
-	json.Unmarshal(bytes, &v)
+	v, _ := Unmarshal[T](bytes)
 	return v
 }
 
@@ -31,12 +30,8 @@ func Marshal(v any, pretty ...bool) ([]byte, error) {
 }
 
 func IMarshal(v any, pretty ...bool) []byte {
-	if slice.Defu(false, pretty) {
-		value, _ := json.MarshalIndent(v, "", "\t")
-		return value
-	}
-	value, _ := json.Marshal(v)
-	return value
+	d, _ := Marshal(v, pretty...)
+	return d
 }
 
 // String returns the JSON encoding of data as a string.
@@ -51,12 +46,8 @@ func String(data any, pretty ...bool) (string, error) {
 }
 
 func IString(data any, pretty ...bool) string {
-	if slice.Defu(false, pretty) {
-		d, _ := json.MarshalIndent(data, "", "  ")
-		return string(d)
-	}
-	d, _ := json.Marshal(data)
-	return string(d)
+	s, _ := String(data, pretty...)
+	return s
 }
 
 func Map(data any) map[string]any {

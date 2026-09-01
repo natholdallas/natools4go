@@ -52,14 +52,30 @@ func TestDigits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got < 100 || got > 999 {
-		t.Errorf("got %d, want a 3-digit number", got)
+	if len(got) != 3 {
+		t.Errorf("got %q, want a 3-character string", got)
 	}
 	if _, err := Digits(n, 20); err == nil {
 		t.Error("expected out-of-range error, got nil")
 	}
 	if _, err := Digits(n, 0); err == nil {
 		t.Error("expected error for length 0, got nil")
+	}
+}
+
+func TestDigitsPreservesLeadingZero(t *testing.T) {
+	// A number containing a zero must not silently drop it via int parsing.
+	n := big.NewInt(102)
+	got, err := Digits(n, 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %q, want exactly 2 characters", got)
+	}
+	valid := map[string]bool{"10": true, "01": true, "02": true, "20": true, "12": true, "21": true}
+	if !valid[got] {
+		t.Errorf("unexpected result %q from 102 with length 2", got)
 	}
 }
 

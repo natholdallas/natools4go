@@ -2,50 +2,24 @@ package strs
 
 import (
 	"strconv"
+	"unsafe"
 
 	"github.com/natholdallas/natools4go/constraints"
 )
 
 // uintBits reports the bit width of the unsigned type T.
 func uintBits[T constraints.Unsigned]() int {
-	switch any(*new(T)).(type) {
-	case uint8:
-		return 8
-	case uint16:
-		return 16
-	case uint32:
-		return 32
-	case uint64:
-		return 64
-	default: // uint, uintptr
-		return strconv.IntSize
-	}
+	return int(unsafe.Sizeof(*new(T)) * 8)
 }
 
 // intBits reports the bit width of the signed type T.
 func intBits[T constraints.Signed]() int {
-	switch any(*new(T)).(type) {
-	case int8:
-		return 8
-	case int16:
-		return 16
-	case int32:
-		return 32
-	case int64:
-		return 64
-	default: // int
-		return strconv.IntSize
-	}
+	return int(unsafe.Sizeof(*new(T)) * 8)
 }
 
 // floatBits reports the bit width of the float type T.
 func floatBits[T constraints.Float]() int {
-	switch any(*new(T)).(type) {
-	case float32:
-		return 32
-	default:
-		return 64
-	}
+	return int(unsafe.Sizeof(*new(T)) * 8)
 }
 
 // FormatUint converts an unsigned integer of any type (uint, uint8, uint16, uint32, uint64)

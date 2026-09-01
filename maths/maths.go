@@ -1,6 +1,8 @@
 // Package maths
 package maths
 
+import "strconv"
+
 // DivCeil performs integer division and rounds the result up (ceiling).
 // It handles both positive and negative integers correctly. A zero divisor
 // returns 0.
@@ -18,24 +20,13 @@ func DivCeil(a, b int64) int64 {
 // Digits decomposes an int64 into a slice of its individual digits,
 // discarding the sign. Example: maths.Digits(123) returns []int64{1, 2, 3}.
 func Digits(n int64) []int64 {
-	if n == 0 {
-		return []int64{0}
+	s := strconv.FormatInt(n, 10)
+	if len(s) > 0 && s[0] == '-' {
+		s = s[1:]
 	}
-	var u uint64
-	if n < 0 {
-		// Avoid overflow on MinInt64 by negating in unsigned space.
-		u = uint64(-(n + 1)) + 1
-	} else {
-		u = uint64(n)
-	}
-	count := 0
-	for temp := u; temp != 0; temp /= 10 {
-		count++
-	}
-	digits := make([]int64, count)
-	for i := count - 1; i >= 0; i-- {
-		digits[i] = int64(u % 10)
-		u /= 10
+	digits := make([]int64, len(s))
+	for i, c := range s {
+		digits[i] = int64(c - '0')
 	}
 	return digits
 }

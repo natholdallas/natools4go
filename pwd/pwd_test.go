@@ -23,3 +23,21 @@ func TestHashVerify(t *testing.T) {
 		t.Fatal("expected empty to fail verify")
 	}
 }
+
+func TestVerifyMaliciousParamsNoPanic(t *testing.T) {
+	// Attacker-crafted hashes with t=0 / p=0 used to crash argon2.IDKey
+	// (which panics when time<1 or threads<1). They must now fail cleanly.
+	cases := []string{
+		"$argon2id$v=19$m=65536,t=0,p=2$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+		"$argon2id$v=19$m=65536,t=3,p=0$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+		// Wrong parameters (non-standard m/t/p) must be rejected too.
+		"$argon2id$v=19$m=1,t=3,p=2$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+		// Bad salt/key lengths.
+		"$argon2id$v=19$m=65536,t=3,p=2$QUJD$QUJD",
+	}
+	for _, h := range cases {
+		if Verify("whatever", h) {
+			t.Errorf("Verify(%q) = true, want false", h)
+		}
+	}
+}

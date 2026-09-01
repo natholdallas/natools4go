@@ -48,12 +48,24 @@ func Verify(plain, encoded string) bool {
 	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &timeCost, &parallelism); err != nil {
 		return false
 	}
+	// Only accept the exact parameters used by Hash. This both prevents the
+	// argon2.IDKey panic on t<1/p<1 (attacker-crafted hashes) and blocks
+	// memory-exhaustion DoS via arbitrarily large m/t values.
+	if memory != 64*1024 || timeCost != 3 || parallelism != 2 {
+		return false
+	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
 		return false
 	}
+	if len(salt) != saltLen {
+		return false
+	}
 	key, err := base64.RawStdEncoding.DecodeString(parts[5])
 	if err != nil {
+		return false
+	}
+	if len(key) != keyLen {
 		return false
 	}
 	derived := argon2.IDKey([]byte(plain), salt, uint32(timeCost), uint32(memory), uint8(parallelism), uint32(len(key)))

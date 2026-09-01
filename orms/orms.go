@@ -40,16 +40,6 @@ func New(dialector gorm.Dialector, opts ...gorm.Option) (*gorm.DB, error) {
 	return tx, nil
 }
 
-// INew returns only the gorm.DB instance, ignoring any error. This is a
-// convenience for callers that don't need to handle the error explicitly.
-func INew(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
-	tx, err := New(dialector, opts...)
-	if err != nil {
-		return nil
-	}
-	return tx
-}
-
 // MustNew returns the gorm.DB instance, panicking with context if an error occurs.
 func MustNew(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 	tx, err := New(dialector, opts...)
@@ -57,47 +47,6 @@ func MustNew(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 		panic(err)
 	}
 	return tx
-}
-
-func LogPreset(out io.Writer, level logger.LogLevel) logger.Interface {
-	return logger.New(log.New(out, "[DB] ", log.LstdFlags), logger.Config{
-		SlowThreshold:             200 * time.Millisecond,
-		LogLevel:                  level,
-		IgnoreRecordNotFoundError: true,
-		Colorful:                  false,
-	})
-}
-
-// Reset is a strategy to create database and drop the database, it will faster than turncate and
-// most important it is affinity with dev mode while you are first design your database
-func Reset(dbName, driverName, dataSourceName string) error {
-	db, err := sql.Open(driverName, dataSourceName)
-	if err != nil {
-		return fmt.Errorf("failed to connect tt server: %w", err)
-	}
-	defer db.Close()
-	dropQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)
-	if _, err := db.Exec(dropQuery); err != nil {
-		return fmt.Errorf("failed to drop database %s: %w", dbName, err)
-	}
-	createQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbName)
-	if _, err := db.Exec(createQuery); err != nil {
-		return fmt.Errorf("failed to create database %s: %w", dbName, err)
-	}
-	return nil
-}
-
-// AutoCreate creates a database if it does not already exist using the provided driver and data source.
-func AutoCreate(dbName, driverName, dataSourceName string) {
-	db, err := sql.Open(driverName, dataSourceName)
-	if err != nil {
-		panic(fmt.Errorf("failed to connect to database: %w", err))
-	}
-	defer db.Close()
-	createQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbName)
-	if _, err := db.Exec(createQuery); err != nil {
-		panic(fmt.Errorf("failed to create database %s: %w", dbName, err))
-	}
 }
 
 func DSN(driverName, name, username, password, host, port string) (string, error) {
@@ -116,11 +65,6 @@ func DSN(driverName, name, username, password, host, port string) (string, error
 	default:
 		return "", fmt.Errorf("unsupported database driver: %s (supported: mysql, postgres, sqlite, sqlserver, clickhouse)", driverName)
 	}
-}
-
-func IDSN(driverName, name, username, password, host, port string) string {
-	dsn, _ := DSN(driverName, name, username, password, host, port)
-	return dsn
 }
 
 func MustDSN(driverName, name, username, password, host, port string) string {
@@ -176,15 +120,72 @@ func Dialector(driverName string, dsn, name, query string, prepare ...bool) (gor
 	}
 }
 
-func IDialector(driverName string, dsn, name, query string, prepare ...bool) gorm.Dialector {
-	d, _ := Dialector(driverName, dsn, name, query, prepare...)
-	return d
-}
-
 func MustDialector(driverName string, dsn, name, query string, prepare ...bool) gorm.Dialector {
 	d, err := Dialector(driverName, dsn, name, query, prepare...)
 	if err != nil {
 		panic(err)
 	}
 	return d
+}
+
+func LogPreset(out io.Writer, level logger.LogLevel) logger.Interface {
+	return logger.New(log.New(out, "[DB] ", log.LstdFlags), logger.Config{
+		SlowThreshold:             200 * time.Millisecond,
+		LogLevel:                  level,
+		IgnoreRecordNotFoundError: true,
+		Colorful:                  false,
+	})
+}
+
+// validateDBName ensures dbName is a safe, bare SQL identifier so it cannot
+// be used for SQL injection in interpolated DDL.
+func validateDBName(dbName string) error {
+	for i, r := range dbName {
+		valid := r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (i > 0 && r >= '0' && r <= '9')
+		if !valid {
+			return fmt.Errorf("invalid database name %q: must be a bare identifier (letters, digits, underscore)", dbName)
+		}
+	}
+	if dbName == "" {
+		return fmt.Errorf("invalid database name: must not be empty")
+	}
+	return nil
+}
+
+// Reset is a strategy to create database and drop the database, it will faster than turncate and
+// most important it is affinity with dev mode while you are first design your database
+func Reset(dbName, driverName, dataSourceName string) error {
+	if err := validateDBName(dbName); err != nil {
+		return err
+	}
+	db, err := sql.Open(driverName, dataSourceName)
+	if err != nil {
+		return fmt.Errorf("failed to connect tt server: %w", err)
+	}
+	defer db.Close()
+	dropQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)
+	if _, err := db.Exec(dropQuery); err != nil {
+		return fmt.Errorf("failed to drop database %s: %w", dbName, err)
+	}
+	createQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbName)
+	if _, err := db.Exec(createQuery); err != nil {
+		return fmt.Errorf("failed to create database %s: %w", dbName, err)
+	}
+	return nil
+}
+
+// AutoCreate creates a database if it does not already exist using the provided driver and data source.
+func AutoCreate(dbName, driverName, dataSourceName string) {
+	if err := validateDBName(dbName); err != nil {
+		panic(fmt.Errorf("failed to create database: %w", err))
+	}
+	db, err := sql.Open(driverName, dataSourceName)
+	if err != nil {
+		panic(fmt.Errorf("failed to connect to database: %w", err))
+	}
+	defer db.Close()
+	createQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbName)
+	if _, err := db.Exec(createQuery); err != nil {
+		panic(fmt.Errorf("failed to create database %s: %w", dbName, err))
+	}
 }

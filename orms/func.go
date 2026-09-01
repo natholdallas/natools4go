@@ -39,8 +39,7 @@ func First[T any](tx *gorm.DB, conds ...any) (T, error) {
 
 // IFirst retrieves a single record by its primary key ignoring the error.
 func IFirst[T any](tx *gorm.DB, conds ...any) T {
-	var v T
-	tx.First(&v, conds...)
+	v, _ := First[T](tx, conds...)
 	return v
 }
 
@@ -53,8 +52,7 @@ func Take[T any](tx *gorm.DB, conds ...any) (T, error) {
 
 // ITake retrieves a single record by its primary key, ignoring the error if not found.
 func ITake[T any](tx *gorm.DB, conds ...any) T {
-	var v T
-	tx.Take(&v, conds...)
+	v, _ := Take[T](tx, conds...)
 	return v
 }
 
@@ -67,8 +65,7 @@ func Last[T any](tx *gorm.DB, conds ...any) (T, error) {
 
 // ILast retrieves the last record of the model type T ignoring the error.
 func ILast[T any](tx *gorm.DB, conds ...any) T {
-	var v T
-	tx.Last(&v, conds...)
+	v, _ := Last[T](tx, conds...)
 	return v
 }
 
@@ -81,8 +78,7 @@ func Find[T any](tx *gorm.DB, conds ...any) ([]T, error) {
 
 // IFind list all record, if not found it will return a zero value
 func IFind[T any](tx *gorm.DB, conds ...any) []T {
-	var v []T
-	tx.Find(&v, conds...)
+	v, _ := Find[T](tx, conds...)
 	return v
 }
 

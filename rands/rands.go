@@ -6,8 +6,6 @@ import (
 	"math/big"
 	"math/rand/v2"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -55,19 +53,26 @@ func DistributeStrict(total, parts int) []int {
 	return v
 }
 
-// Digits extracts 'length' random digits from a large number after shuffling.
-// The sign (if any) is discarded before shuffling so the '-' cannot land in
-// the middle of the result.
-func Digits(num *big.Int, length int) (int, error) {
+// Digits extracts 'length' random digits from a large number, returned as a
+// string of exactly 'length' characters. Leading zeros are preserved (unlike
+// parsing to an int). The sign (if any) is discarded first so '-' cannot land
+// in the middle of the result. A partial Fisher-Yates shuffle samples exactly
+// 'length' distinct positions, running in O(length).
+func Digits(num *big.Int, length int) (string, error) {
 	digits := []byte(num.String())
 	if len(digits) > 0 && digits[0] == '-' {
 		digits = digits[1:]
 	}
 	if length < 1 || length > len(digits) {
-		return 0, fmt.Errorf("length %d out of range [1, %d]", length, len(digits))
+		return "", fmt.Errorf("length %d out of range [1, %d]", length, len(digits))
 	}
-	FisherYatesShuffle(digits)
-	return strconv.Atoi(string(digits[:length]))
+	// Partial Fisher-Yates: place a uniformly random distinct digit at each of
+	// the first 'length' positions, then take those.
+	for i := 0; i < length; i++ {
+		j := rand.IntN(len(digits)-i) + i
+		digits[i], digits[j] = digits[j], digits[i]
+	}
+	return string(digits[:length]), nil
 }
 
 // BetweenTime returns a random time between the start and end range.
@@ -84,12 +89,14 @@ func BetweenTime(start, end time.Time) time.Time {
 // Char generates a random alphanumeric string of the specified length.
 // It uses pre-allocation and direct byte writing for optimal performance.
 func Char(length int) string {
-	var b strings.Builder
-	b.Grow(length) // Pre-allocate memory to avoid multiple reallocations
-	for range length {
-		b.WriteByte(alphabet[rand.IntN(len(alphabet))]) // Directly write the byte to avoid string(char) conversion cost
+	if length <= 0 {
+		return ""
 	}
-	return b.String()
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = alphabet[rand.IntN(len(alphabet))]
+	}
+	return string(b)
 }
 
 // Pick returns a random element from a slice of any type.

@@ -15,7 +15,7 @@ func Map[T, R any](arr []T, f func(T) R) []R {
 // Filter iterates over elements of the slice s, returning a new slice
 // containing all elements for which the predicate f returns true.
 func Filter[T any](s []T, f func(T) bool) []T {
-	r := make([]T, 0, len(s))
+	var r []T
 	for _, v := range s {
 		if f(v) {
 			r = append(r, v)
