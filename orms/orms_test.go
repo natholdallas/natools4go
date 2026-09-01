@@ -43,7 +43,8 @@ func TestValidateDBName(t *testing.T) {
 	}
 }
 
-func TestMigrateAndCRUD(t *testing.T) {	db := newTestDB(t)
+func TestMigrateAndCRUD(t *testing.T) {
+	db := newTestDB(t)
 	if err := db.AutoMigrate(&user{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}

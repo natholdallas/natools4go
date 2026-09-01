@@ -36,7 +36,7 @@ var callerPredicate = func(name, file string) bool {
 }
 
 var (
-	stdlib atomic.Pointer[log.Logger]
+	stdlib  atomic.Pointer[log.Logger]
 	printer atomic.Pointer[printerFunc]
 	debug   atomic.Bool
 )
@@ -162,4 +162,3 @@ func caller(start int) (file string, line int, depth int) {
 		}
 	}
 }
-

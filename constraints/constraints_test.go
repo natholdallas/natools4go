@@ -6,10 +6,10 @@ import (
 
 // Compile-time assertions that the constraint interfaces accept the intended
 // built-in types and reject nothing at the type-parameter level.
-func integer[T Integer](v T) T { return v }
-func signed[T Signed](v T) T   { return v }
+func integer[T Integer](v T) T   { return v }
+func signed[T Signed](v T) T     { return v }
 func unsigned[T Unsigned](v T) T { return v }
-func floating[T Float](v T) T  { return v }
+func floating[T Float](v T) T    { return v }
 
 func TestIntegerAcceptsBuiltins(t *testing.T) {
 	cases := []any{

@@ -193,4 +193,3 @@ func readBody(resp *http.Response) string {
 	defer resp.Body.Close()
 	return strings.TrimSpace(string(data))
 }
-
