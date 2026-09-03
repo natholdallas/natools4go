@@ -68,7 +68,7 @@ func Digits(num *big.Int, length int) (string, error) {
 	}
 	// Partial Fisher-Yates: place a uniformly random distinct digit at each of
 	// the first 'length' positions, then take those.
-	for i := 0; i < length; i++ {
+	for i := range length {
 		j := rand.IntN(len(digits)-i) + i
 		digits[i], digits[j] = digits[j], digits[i]
 	}
