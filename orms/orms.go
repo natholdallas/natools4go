@@ -5,8 +5,6 @@ package orms
 import (
 	"database/sql"
 	"fmt"
-	"io"
-	"log"
 	"time"
 
 	"github.com/natholdallas/natools4go/slice"
@@ -16,7 +14,6 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // New is preset function to open gorm datasource, if err not nil it will be fatal
@@ -70,7 +67,7 @@ func DSN(driverName, name, username, password, host, port string) (string, error
 func MustDSN(driverName, name, username, password, host, port string) string {
 	dsn, err := DSN(driverName, name, username, password, host, port)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to generate DSN: %w", err))
 	}
 	return dsn
 }
@@ -123,33 +120,26 @@ func Dialector(driverName string, dsn, name, query string, prepare ...bool) (gor
 func MustDialector(driverName string, dsn, name, query string, prepare ...bool) gorm.Dialector {
 	d, err := Dialector(driverName, dsn, name, query, prepare...)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to open database: %w", err))
 	}
 	return d
 }
 
-func LogPreset(out io.Writer, level logger.LogLevel) logger.Interface {
-	return logger.New(log.New(out, "[DB] ", log.LstdFlags), logger.Config{
-		SlowThreshold:             200 * time.Millisecond,
-		LogLevel:                  level,
-		IgnoreRecordNotFoundError: true,
-		Colorful:                  false,
-	})
+func AutoMigrate(tx *gorm.DB, dst ...any) error {
+	switch tx.Name() {
+	case "mysql", "mariadb":
+		tx = tx.Set("gorm:table_options", "COLLATE=utf8mb4_bin")
+	case "sqlserver", "mssql":
+		tx = tx.Set("gorm:table_options", "COLLATE=SQL_Latin1_General_CP1_CS_AS")
+	}
+	err := tx.AutoMigrate(dst...)
+	return err
 }
 
-// validateDBName ensures dbName is a safe, bare SQL identifier so it cannot
-// be used for SQL injection in interpolated DDL.
-func validateDBName(dbName string) error {
-	for i, r := range dbName {
-		valid := r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (i > 0 && r >= '0' && r <= '9')
-		if !valid {
-			return fmt.Errorf("invalid database name %q: must be a bare identifier (letters, digits, underscore)", dbName)
-		}
+func MustAutoMigrate(tx *gorm.DB, dst ...any) {
+	if err := AutoMigrate(tx, dst...); err != nil {
+		panic(fmt.Errorf("failed to auto migrate: %w", err))
 	}
-	if dbName == "" {
-		return fmt.Errorf("invalid database name: must not be empty")
-	}
-	return nil
 }
 
 // Reset is a strategy to create database and drop the database, it will faster than turncate and

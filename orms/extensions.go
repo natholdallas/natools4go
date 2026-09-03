@@ -1,11 +1,14 @@
 package orms
 
 import (
+	"io"
+	"log"
 	"time"
 
 	"github.com/natholdallas/natools4go/maths"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 )
 
 // GormScope defines a function type compatible with gorm.Scopes.
@@ -130,10 +133,7 @@ const maxPage = 1_000_000
 
 // normalize returns sanitized page/size values without mutating the receiver.
 func (s *Pagination) normalize() (page, size int) {
-	page = max(s.Page, 1)
-	if page > maxPage {
-		page = maxPage
-	}
+	page = min(max(s.Page, 1), maxPage)
 	size = s.Size
 	if size < 1 {
 		size = 20
@@ -170,4 +170,14 @@ func Paginate[T any](tx *gorm.DB, pagination Pagination) (Page[T], *gorm.DB) {
 	page := maths.DivCeil(total, int64(size))
 	v := Page[T]{total, page, content}
 	return v, tx
+}
+
+// LogPreset returns a logger with the given output and log level.
+func LogPreset(out io.Writer, level logger.LogLevel) logger.Interface {
+	return logger.New(log.New(out, "[DB] ", log.LstdFlags), logger.Config{
+		SlowThreshold:             200 * time.Millisecond,
+		LogLevel:                  level,
+		IgnoreRecordNotFoundError: true,
+		Colorful:                  false,
+	})
 }
