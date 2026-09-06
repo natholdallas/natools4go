@@ -14,6 +14,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // New is preset function to open gorm datasource, if err not nil it will be fatal
@@ -140,6 +141,41 @@ func MustAutoMigrate(tx *gorm.DB, dst ...any) {
 	if err := AutoMigrate(tx, dst...); err != nil {
 		panic(fmt.Errorf("failed to auto migrate: %w", err))
 	}
+}
+
+// SyncDB reconciles every registered table with its struct definition. Data in
+// kept columns is preserved; columns removed from the struct are dropped.
+func SyncDB(tx *gorm.DB, models ...any) error {
+	for _, model := range models {
+		if err := syncTable(tx, model); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ResetTables drops and recreates every registered table from its struct so the
+// column order exactly matches the declaration order. All data is lost.
+func ResetTables(tx *gorm.DB, models ...any) error {
+	switch tx.Name() {
+	case "mysql", "mariadb":
+		tx.Exec("SET FOREIGN_KEY_CHECKS=0")
+		defer tx.Exec("SET FOREIGN_KEY_CHECKS=1")
+	}
+	for _, model := range models {
+		s, err := schemaOf(tx, model)
+		if err != nil {
+			return err
+		}
+		if err := tx.Exec("DROP TABLE IF EXISTS ?", clause.Table{Name: s.Table}).Error; err != nil {
+			return err
+		}
+		if err := AutoMigrate(tx, model); err != nil {
+			return err
+		}
+		fmt.Printf("reset table %s\n", s.Table)
+	}
+	return nil
 }
 
 // Reset is a strategy to create database and drop the database, it will faster than turncate and
