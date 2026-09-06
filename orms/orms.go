@@ -17,9 +17,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// New is preset function to open gorm datasource, if err not nil it will be fatal
-// but actually i want use panic to replace log.Fatal
-// the template code shouldn't use such [log.Fatal] this function, it is business code
+// New returns a gorm.DB instance.
 func New(dialector gorm.Dialector, opts ...gorm.Option) (*gorm.DB, error) {
 	tx, err := gorm.Open(dialector, opts...)
 	if err != nil {
@@ -38,7 +36,6 @@ func New(dialector gorm.Dialector, opts ...gorm.Option) (*gorm.DB, error) {
 	return tx, nil
 }
 
-// MustNew returns the gorm.DB instance, panicking with context if an error occurs.
 func MustNew(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 	tx, err := New(dialector, opts...)
 	if err != nil {
@@ -47,6 +44,7 @@ func MustNew(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 	return tx
 }
 
+// DSN returns the dsn for the given driver name, dsn, and options.
 func DSN(driverName, name, username, password, host, port string) (string, error) {
 	switch driverName {
 	case "mysql":
@@ -73,6 +71,7 @@ func MustDSN(driverName, name, username, password, host, port string) string {
 	return dsn
 }
 
+// Dialector returns a gorm.Dialector for the given driver name, dsn, and options.
 func Dialector(driverName string, dsn, name, query string, prepare ...bool) (gorm.Dialector, error) {
 	needPrepare := slice.Defu(false, prepare)
 	if driverName != "sqlite" && needPrepare {
@@ -126,6 +125,7 @@ func MustDialector(driverName string, dsn, name, query string, prepare ...bool) 
 	return d
 }
 
+// AutoMigrate creates tables for the given models.
 func AutoMigrate(tx *gorm.DB, dst ...any) error {
 	switch tx.Name() {
 	case "mysql", "mariadb":
@@ -154,6 +154,12 @@ func SyncDB(tx *gorm.DB, models ...any) error {
 	return nil
 }
 
+func MustSyncDB(tx *gorm.DB, models ...any) {
+	if err := SyncDB(tx, models...); err != nil {
+		panic(fmt.Errorf("failed to sync database: %w", err))
+	}
+}
+
 // ResetTables drops and recreates every registered table from its struct so the
 // column order exactly matches the declaration order. All data is lost.
 func ResetTables(tx *gorm.DB, models ...any) error {
@@ -176,6 +182,12 @@ func ResetTables(tx *gorm.DB, models ...any) error {
 		fmt.Printf("reset table %s\n", s.Table)
 	}
 	return nil
+}
+
+func MustResetTables(tx *gorm.DB, models ...any) {
+	if err := ResetTables(tx, models...); err != nil {
+		panic(fmt.Errorf("failed to reset tables: %w", err))
+	}
 }
 
 // Reset is a strategy to create database and drop the database, it will faster than turncate and
