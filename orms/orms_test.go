@@ -326,3 +326,106 @@ func seedUsers(t *testing.T, db *gorm.DB, names []string) {
 		time.Sleep(time.Millisecond) // ensure distinct created_at for deterministic ordering
 	}
 }
+
+type syncUser struct {
+	ID   int    `gorm:"primaryKey"`
+	Name string
+	Age  int
+}
+
+func (syncUser) TableName() string { return "sync_users" }
+
+func tableColumns(t *testing.T, db *gorm.DB, table string) []string {
+	t.Helper()
+	var cols []struct{ Name string }
+	if err := db.Raw("PRAGMA table_info(" + table + ")").Scan(&cols).Error; err != nil {
+		t.Fatalf("read columns of %s: %v", table, err)
+	}
+	names := make([]string, len(cols))
+	for i, c := range cols {
+		names[i] = c.Name
+	}
+	return names
+}
+
+func TestSyncTablesHard(t *testing.T) {
+	db := newTestDB(t)
+	if err := db.AutoMigrate(&syncUser{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := db.Exec("ALTER TABLE sync_users ADD COLUMN legacy TEXT").Error; err != nil {
+		t.Fatalf("add legacy column: %v", err)
+	}
+	if err := db.Exec("INSERT INTO sync_users (name, age, legacy) VALUES (?, ?, ?)", "alice", 30, "keep").Error; err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	if err := SyncTablesHard(db, &syncUser{}); err != nil {
+		t.Fatalf("SyncTablesHard: %v", err)
+	}
+
+	cols := tableColumns(t, db, "sync_users")
+	for _, c := range cols {
+		if c == "legacy" {
+			t.Errorf("hard sync kept dropped column legacy: %v", cols)
+		}
+	}
+
+	var name string
+	var age int
+	if err := db.Raw("SELECT name, age FROM sync_users WHERE id = 1").Row().Scan(&name, &age); err != nil {
+		t.Fatalf("read row: %v", err)
+	}
+	if name != "alice" || age != 30 {
+		t.Errorf("data lost after hard sync: name=%q age=%d", name, age)
+	}
+}
+
+func TestSyncTablesSoft(t *testing.T) {
+	db := newTestDB(t)
+	if err := db.AutoMigrate(&syncUser{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := db.Exec("ALTER TABLE sync_users ADD COLUMN zzz TEXT").Error; err != nil {
+		t.Fatalf("add zzz column: %v", err)
+	}
+	if err := db.Exec("ALTER TABLE sync_users ADD COLUMN aaa TEXT").Error; err != nil {
+		t.Fatalf("add aaa column: %v", err)
+	}
+	if err := db.Exec("INSERT INTO sync_users (name, age, zzz, aaa) VALUES (?, ?, ?, ?)", "bob", 25, "z-data", "a-data").Error; err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	if err := SyncTablesSoft(db, &syncUser{}); err != nil {
+		t.Fatalf("SyncTablesSoft: %v", err)
+	}
+
+	cols := tableColumns(t, db, "sync_users")
+	want := []string{"id", "name", "age", "aaa", "zzz"}
+	if len(cols) != len(want) {
+		t.Fatalf("soft sync columns = %v, want %v", cols, want)
+	}
+	for i := range want {
+		if cols[i] != want[i] {
+			t.Errorf("soft sync columns = %v, want %v", cols, want)
+			break
+		}
+	}
+
+	var zzz, aaa string
+	if err := db.Raw("SELECT zzz, aaa FROM sync_users WHERE id = 1").Row().Scan(&zzz, &aaa); err != nil {
+		t.Fatalf("scan extras: %v", err)
+	}
+	if zzz != "z-data" || aaa != "a-data" {
+		t.Errorf("extra data lost after soft sync: zzz=%q aaa=%q", zzz, aaa)
+	}
+}
+
+func TestSyncTablesMust(t *testing.T) {
+	db := newTestDB(t)
+	MustSyncTablesSoft(db, &syncUser{})
+	MustSyncTablesHard(db, &syncUser{})
+	if !db.Migrator().HasTable(&syncUser{}) {
+		t.Fatal("expected sync_users table to exist")
+	}
+}

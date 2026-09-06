@@ -5,6 +5,7 @@ package orms
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/natholdallas/natools4go/slice"
@@ -143,21 +144,109 @@ func MustAutoMigrate(tx *gorm.DB, dst ...any) {
 	}
 }
 
-// SyncDB reconciles every registered table with its struct definition. Data in
-// kept columns is preserved; columns removed from the struct are dropped.
-func SyncDB(tx *gorm.DB, models ...any) error {
-	for _, model := range models {
-		if err := syncTable(tx, model); err != nil {
-			return err
-		}
-	}
-	return nil
+// syncMode selects how SyncTables reconciles a table with its struct definition.
+type syncMode uint8
+
+const (
+	modeSoft syncMode = iota
+	modeHard
+)
+
+// SyncTablesSoft reconciles every registered table with its struct definition
+// without dropping any data. Columns that exist in the database but not in the
+// struct are kept, moved to the end of the table, and ordered by column name.
+// Newly added struct columns are placed according to the declaration order, and
+// shared columns are preserved as-is. Extra columns that must be moved are
+// rebuilt with a best-effort type reconstructed from the database, so they may
+// lose DEFAULT, COMMENT, or fractional-second precision.
+func SyncTablesSoft(tx *gorm.DB, models ...any) error {
+	return syncTables(tx, modeSoft, models...)
 }
 
-func MustSyncDB(tx *gorm.DB, models ...any) {
-	if err := SyncDB(tx, models...); err != nil {
-		panic(fmt.Errorf("failed to sync database: %w", err))
+func MustSyncTablesSoft(tx *gorm.DB, models ...any) {
+	if err := SyncTablesSoft(tx, models...); err != nil {
+		panic(fmt.Errorf("failed to sync tables: %w", err))
 	}
+}
+
+// SyncTablesHard reconciles every registered table with its struct definition.
+// Data in kept columns is preserved; columns removed from the struct are
+// dropped and the remaining columns are reordered to match the struct
+// declaration order.
+func SyncTablesHard(tx *gorm.DB, models ...any) error {
+	return syncTables(tx, modeHard, models...)
+}
+
+func MustSyncTablesHard(tx *gorm.DB, models ...any) {
+	if err := SyncTablesHard(tx, models...); err != nil {
+		panic(fmt.Errorf("failed to sync tables: %w", err))
+	}
+}
+
+// syncTables reconciles every registered table with its struct definition
+// according to the given mode.
+func syncTables(tx *gorm.DB, mode syncMode, models ...any) error {
+	for _, model := range models {
+		s, err := schemaOf(tx, model)
+		if err != nil {
+			return err
+		}
+		table := s.Table
+
+		if !tx.Migrator().HasTable(model) {
+			if autoMigrateErr := AutoMigrate(tx, model); autoMigrateErr != nil {
+				return autoMigrateErr
+			}
+			continue
+		}
+
+		actual, err := columnPositions(tx, model)
+		if err != nil {
+			return err
+		}
+		desired := desiredColumns(s)
+
+		// hard mode: drop columns that no longer exist in the struct (skip primary key)
+		extras := []string{}
+		if mode == modeHard {
+			for name := range actual {
+				if slices.Contains(desired, name) {
+					continue
+				}
+				field := s.LookUpField(name)
+				if field != nil && field.PrimaryKey {
+					continue
+				}
+				fmt.Printf("sync %s: drop column %s\n", table, name)
+				if err := tx.Migrator().DropColumn(model, name); err != nil {
+					return err
+				}
+			}
+		} else {
+			// soft mode: keep database-only columns, sorted by name, at the end
+			for name := range actual {
+				if !slices.Contains(desired, name) {
+					extras = append(extras, name)
+				}
+			}
+			slices.Sort(extras)
+		}
+
+		// add columns that are missing from the database
+		for _, name := range desired {
+			if _, ok := actual[name]; ok {
+				continue
+			}
+			fmt.Printf("sync %s: add column %s\n", table, name)
+			if err := tx.Migrator().AddColumn(model, name); err != nil {
+				return err
+			}
+		}
+
+		// reorder columns to match the declaration order, keeping extras last
+		return reorderColumns(tx, model, s, slices.Concat(desired, extras))
+	}
+	return nil
 }
 
 // ResetTables drops and recreates every registered table from its struct so the
