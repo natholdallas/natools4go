@@ -3,6 +3,7 @@ package structs
 
 import (
 	"github.com/go-viper/mapstructure/v2"
+
 	"github.com/natholdallas/natools4go/va"
 )
 

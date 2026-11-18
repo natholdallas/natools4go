@@ -2,6 +2,8 @@ package orms
 
 import (
 	"io"
+	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -328,7 +330,7 @@ func seedUsers(t *testing.T, db *gorm.DB, names []string) {
 }
 
 type syncUser struct {
-	ID   int    `gorm:"primaryKey"`
+	ID   int `gorm:"primaryKey"`
 	Name string
 	Age  int
 }
@@ -427,5 +429,131 @@ func TestSyncTablesMust(t *testing.T) {
 	MustSyncTablesHard(db, &syncUser{})
 	if !db.Migrator().HasTable(&syncUser{}) {
 		t.Fatal("expected sync_users table to exist")
+	}
+}
+
+// syncPost is a second model used to prove syncTables processes every model
+// instead of stopping after the first one.
+type syncPost struct {
+	ID    int `gorm:"primaryKey"`
+	Title string
+	Body  string
+}
+
+func (syncPost) TableName() string { return "sync_posts" }
+
+// TestSyncTablesMultipleModels guards against the regression where the sync
+// loop returned after the first model, silently leaving every later table
+// unmigrated while still reporting success.
+func TestSyncTablesMultipleModels(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		sync func(*gorm.DB, ...any) error
+	}{
+		{"soft", SyncTablesSoft},
+		{"hard", SyncTablesHard},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := newTestDB(t)
+
+			// Start from the pre-change schema: no Age and no Body columns.
+			if err := db.Exec("CREATE TABLE sync_users (id integer PRIMARY KEY, name text)").Error; err != nil {
+				t.Fatalf("create sync_users: %v", err)
+			}
+			if err := db.Exec("CREATE TABLE sync_posts (id integer PRIMARY KEY, title text)").Error; err != nil {
+				t.Fatalf("create sync_posts: %v", err)
+			}
+
+			if err := tc.sync(db, &syncUser{}, &syncPost{}); err != nil {
+				t.Fatalf("sync: %v", err)
+			}
+
+			// Both tables must have gained their new column.
+			userCols := tableColumns(t, db, "sync_users")
+			if !slices.Contains(userCols, "age") {
+				t.Errorf("first model not synced: %v", userCols)
+			}
+			postCols := tableColumns(t, db, "sync_posts")
+			if !slices.Contains(postCols, "body") {
+				t.Errorf("second model not synced: %v", postCols)
+			}
+		})
+	}
+}
+
+// TestSQLDriverMapping covers the GORM-name to database/sql-name translation and
+// the "file database needs no CREATE DATABASE" classification.
+func TestSQLDriverMapping(t *testing.T) {
+	for _, tc := range []struct {
+		gorm       string
+		sql        string
+		serverBase bool
+	}{
+		{"mysql", "mysql", true},
+		{"mariadb", "mysql", true},
+		{"postgres", "pgx", true},
+		{"postgresql", "pgx", true},
+		{"sqlserver", "sqlserver", true},
+		{"mssql", "sqlserver", true},
+		{"clickhouse", "clickhouse", true},
+		{"sqlite", "sqlite3", false},
+		{"sqlite3", "sqlite3", false},
+	} {
+		drv, serverBased, err := sqlDriverOf(tc.gorm)
+		if err != nil {
+			t.Errorf("sqlDriverOf(%q): %v", tc.gorm, err)
+			continue
+		}
+		if drv != tc.sql || serverBased != tc.serverBase {
+			t.Errorf("sqlDriverOf(%q) = (%q, %v), want (%q, %v)",
+				tc.gorm, drv, serverBased, tc.sql, tc.serverBase)
+		}
+	}
+
+	if _, _, err := sqlDriverOf("oracle"); err == nil {
+		t.Error("sqlDriverOf(oracle) should report an unsupported driver")
+	}
+}
+
+// TestAutoCreateSQLiteIsNoop ensures a file database — which the driver creates
+// on demand — does not fail by trying to run CREATE DATABASE.
+func TestAutoCreateSQLiteIsNoop(t *testing.T) {
+	if err := AutoCreateE("ignored", "sqlite", filepath.Join(t.TempDir(), "x.db")); err != nil {
+		t.Fatalf("AutoCreateE(sqlite) = %v, want nil", err)
+	}
+}
+
+// TestDeleteRejectsRawString guards the SQL-injection footgun: a route parameter
+// such as "1 or 1=1" must never reach GORM as a raw WHERE clause.
+func TestDeleteRejectsRawString(t *testing.T) {
+	db := newTestDB(t)
+	if err := db.AutoMigrate(&syncUser{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	for _, name := range []string{"alice", "bob"} {
+		if err := db.Create(&syncUser{Name: name}).Error; err != nil {
+			t.Fatalf("insert %s: %v", name, err)
+		}
+	}
+
+	for _, cond := range []string{"1 or 1=1", "1=1", "", "id = 1"} {
+		if err := Delete[syncUser](db, cond); err == nil {
+			t.Errorf("Delete(%q) accepted a raw condition", cond)
+		}
+	}
+	if n := Count[syncUser](db); n != 2 {
+		t.Fatalf("rows after rejected deletes = %d, want 2", n)
+	}
+
+	// The typed helper deletes exactly one row.
+	affected, err := DeleteByID[syncUser](db, 1)
+	if err != nil {
+		t.Fatalf("DeleteByID: %v", err)
+	}
+	if affected != 1 {
+		t.Errorf("DeleteByID affected = %d, want 1", affected)
+	}
+	if n := Count[syncUser](db); n != 1 {
+		t.Errorf("rows after DeleteByID = %d, want 1", n)
 	}
 }

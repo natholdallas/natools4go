@@ -2,6 +2,8 @@ package orms
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -127,9 +129,59 @@ func UpdatesByID[T any](tx *gorm.DB, id, values any) error {
 	return tx.Model(new(T)).Where(pk+" = ?", id).Updates(values).Error
 }
 
-// Delete performs a batch delete for the given primary keys.
+// Delete performs a batch delete for the given conditions.
+//
+// A bare string condition is passed straight to GORM, which treats a string
+// containing a space or "?" as a raw WHERE clause. That turns an unvalidated
+// route parameter into SQL injection:
+//
+//	orms.Delete[User](tx, c.Params("id"))   // "1 or 1=1" deletes every row
+//
+// To keep that footgun out of calling code, Delete rejects such conditions and
+// points at the typed helpers. Use DeleteByID for primary-key deletes and
+// DeleteWhere for anything else.
 func Delete[T any](tx *gorm.DB, conds ...any) error {
+	if err := checkDeleteConds(conds); err != nil {
+		return err
+	}
 	return tx.Delete(new(T), conds...).Error
+}
+
+// checkDeleteConds rejects raw SQL-looking strings so an unvalidated request
+// parameter cannot widen a delete into a table-wide one.
+func checkDeleteConds(conds []any) error {
+	for _, cond := range conds {
+		s, ok := cond.(string)
+		if !ok {
+			continue
+		}
+		if s == "" {
+			return fmt.Errorf("orms: refusing empty string condition (use DeleteByID or DeleteWhere)")
+		}
+		if strings.ContainsAny(s, " ?=<>'\"()") {
+			return fmt.Errorf("orms: refusing raw string condition %q (use DeleteWhere for explicit WHERE clauses)", s)
+		}
+	}
+	return nil
+}
+
+// DeleteByID deletes the single record whose primary key equals id and reports
+// how many rows were affected. It is the safe replacement for passing a route
+// parameter to Delete.
+func DeleteByID[T any](tx *gorm.DB, id any) (int64, error) {
+	pk, err := primaryKey[T](tx)
+	if err != nil {
+		return 0, err
+	}
+	res := tx.Where(pk+" = ?", id).Delete(new(T))
+	return res.RowsAffected, res.Error
+}
+
+// DeleteWhere deletes every record matching an explicit SQL condition.
+// The condition is a developer-authored clause, never user input: keep values in
+// the args so they stay parameterised.
+func DeleteWhere[T any](tx *gorm.DB, query any, args ...any) error {
+	return tx.Where(query, args...).Delete(new(T)).Error
 }
 
 // Exec executes raw sql

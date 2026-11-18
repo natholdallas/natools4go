@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/natholdallas/natools4go/slice"
-	"github.com/natholdallas/natools4go/va"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
+
+	"github.com/natholdallas/natools4go/slice"
+	"github.com/natholdallas/natools4go/va"
 )
 
 type EventHandler func(e fsnotify.Event)

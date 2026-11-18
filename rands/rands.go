@@ -86,9 +86,21 @@ func BetweenTime(start, end time.Time) time.Time {
 	return time.Unix(0, min+rand.Int64N(delta))
 }
 
-// Char generates a random alphanumeric string of the specified length.
-// It uses pre-allocation and direct byte writing for optimal performance.
+// Char generates a cryptographically secure random alphanumeric string of the
+// specified length.
+//
+// Historically Char was backed by math/rand/v2, which made it unsuitable for
+// secrets. That was a silent security downgrade at every call site that used it
+// for JWT keys, passwords and token identifiers, so since v1.27.0 Char is an
+// alias of Crypto. Call CharFast when predictability does not matter.
 func Char(length int) string {
+	return Crypto(length)
+}
+
+// CharFast generates a random alphanumeric string using math/rand/v2.
+// It is NOT cryptographically secure: never use it for secrets, tokens, salts
+// or passwords. Prefer Char (or Crypto) for anything security-sensitive.
+func CharFast(length int) string {
 	if length <= 0 {
 		return ""
 	}

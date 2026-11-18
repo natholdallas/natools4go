@@ -47,18 +47,18 @@ Requires **Go 1.25+** (uses generics and modern stdlib features).
 | `slice`      | Generic slice utilities                                                  | `Map`, `Filter`, `ForEach`, `Defu` |
 | `maths`      | Integer math helpers                                                     | `DivCeil`, `Digits` |
 | `strs`       | String helpers & character constants                                     | `Wrap`, `ToStart/ToEnd`, `Trim*`, `FormatInt/Uint/Float/Bool` |
-| `rands`      | Randomization & distribution                                             | `Char`, `Pick`, `Distribute(Strict)`, `Digits`, `FisherYatesShuffle` |
+| `rands`      | Randomization & distribution                                             | `Crypto`/`Char` (CSPRNG), `Hex`, `CryptoDigits`, `Pick`, `Distribute(Strict)`, `Digits` |
 | `jsons`      | JSON marshal / nested-map traversal                                      | `Unmarshal[T]`, `IString`, `GetOK`, `Set` |
-| `va`         | Validator wrapper (`go-playground/validator/v10`)                        | `Struct`, `Var` |
+| `va`         | Validator wrapper (`go-playground/validator/v10`)                        | `Struct`, `Errors` (structured, value-free), `Var` |
 | `constraints`| Generic type constraints                                                 | `Signed`, `Unsigned`, `Integer`, `Float` |
 | `concur`     | Concurrency primitives                                                   | `Go/Run`, `Pool` (bounded), panic recovery |
-| `ask`        | Interactive CLI prompts                                                  | `Read[T]`, `Line`, `Confirm` |
+| `ask`        | Interactive CLI prompts                                                  | `Read[T]`, `Line`, `ReadPassword` (no echo), `Confirm` |
 | `dbg`        | Pretty debugging output                                                  | `JSON`, `Struct`, `Err`, `File` |
 | `structs`    | Map / struct conversion (`mapstructure`)                                 | `Map`, `To[T]`, `Vo[T]` (validated) |
 | `flags`      | CLI flag helpers                                                         | `Run` |
 | `vipers`     | Typed Viper config access with watch events                              | `Get[T]`, `Watch`, `Reload`, `RegisterUpdateHandler` |
 | `fext`       | **Fiber v3** extensions: binding, JWT, errors, cache, logging            | `BodyVarser[T]`, `JWTware`, `ErrorHandler`, `Cache` |
-| `orms`       | **GORM** wrapper: models, pagination, sorting, typed queries             | `Query[T]`, `Paginate`, `SoftModel[T]`, `LogPreset` |
+| `orms`       | **GORM** wrapper: models, pagination, sorting, typed queries             | `Query[T]`, `Paginate`, `SoftModel[T]`, `SyncTablesSoft/Hard`, `DeleteByID` |
 | `narder`     | Tiny leveled logger shared across the toolkits                          | `Info/Infof`, `Warn/Warnf`, `Error/Errorf`, `SetPrinter` |
 
 ---
@@ -172,6 +172,11 @@ err := va.Struct(SignUp{Email: "x"})
 // [Age:0]:[gte-18]
 ```
 
+Values of sensitive fields (names matching `password`, `secret`, `token`,
+`apikey`, `hash`, `salt`, …) are redacted as `***`, because these messages are
+routinely returned to HTTP clients. For a JSON-friendly, entirely value-free
+form use `va.Errors`, which returns `[]FieldError{{Field, Tag, Param}}`.
+
 ---
 
 ## 🧩 Detailed Guides
@@ -193,6 +198,17 @@ err := va.Struct(SignUp{Email: "x"})
 - **Pagination**: `Pagination.Scope` is side-effect free (validates on a copy),
   `Paginate`/`PaginateMapping` give you `Page[T]{Total, Page, Content}`.
 - **Sorting**: `Sorter` / `Sorters` implement `Scoper` for safe column ordering.
+- **Destructive helpers**: `Delete[T](tx, conds...)` refuses raw string conditions
+  (a bare `"1 or 1=1"` becomes a WHERE clause in GORM — the classic route-parameter
+  injection). Use `DeleteByID[T](tx, id)` or `DeleteWhere[T](tx, query, args...)`.
+- **Schema reconciliation**: `SyncTablesSoft` adds missing columns and keeps
+  database-only ones (moved last, sorted); `SyncTablesHard` also drops columns that
+  no longer exist in the struct. Both process **every** model passed in. Prefer
+  `AutoMigrate` for routine add-only migrations.
+- **Reset**: `Reset(db, driver, dsn)` drops and recreates the whole database;
+  `AutoCreate`/`AutoCreateE` create it when missing. Both accept GORM driver names
+  and translate them to the matching `database/sql` driver. SQLite needs neither —
+  file databases create themselves, so those calls are no-ops.
 - **JSON columns**: `List[T]` / `Dict[T]` implement `sql.Scanner` + `driver.Valuer`
   for JSON persistence across databases.
 - **Logging**: `orms.LogPreset(out, level)` builds a stdlib-backed GORM logger.
@@ -227,8 +243,10 @@ config change.
 - `Go(tasks...)` / `Run(tasks...)` — fan out and join.
 - `Pool{workers}` — bounded concurrency via `NewPool(n)`, `Submit`, `Wait`, `Close`.
   Submitting after `Close` panics to catch misuse.
-- Panics in tasks are recovered and reported through `SetPanicHandler` (default:
-  re-panic after capturing the stack).
+- Panics in tasks are recovered, logged through `narder` at ERROR level and
+  **swallowed** — a panicking task cannot take the process down (a panic inside a
+  goroutine cannot be recovered by the caller anyway). Use `SetPanicHandler` to
+  escalate, e.g. re-panic when a fail-fast startup is preferred.
 
 ### `jsons` — JSON helpers
 

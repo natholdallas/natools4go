@@ -5,10 +5,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/natholdallas/natools4go/maths"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
+
+	"github.com/natholdallas/natools4go/maths"
 )
 
 // GormScope defines a function type compatible with gorm.Scopes.

@@ -1,0 +1,26 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - unused
+    - revive
+    - misspell
+  settings:
+    revive:
+      rules:
+        - name: use-any
+        - name: var-naming
+
+formatters:
+  enable:
+    - gofumpt
+    - gci
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - Prefix(github.com/natholdallas/natools4go)

@@ -8,7 +8,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/natholdallas/natools4go/slice"
 	"gorm.io/driver/clickhouse"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -16,6 +15,8 @@ import (
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/natholdallas/natools4go/slice"
 )
 
 // New returns a gorm.DB instance.
@@ -244,7 +245,9 @@ func syncTables(tx *gorm.DB, mode syncMode, models ...any) error {
 		}
 
 		// reorder columns to match the declaration order, keeping extras last
-		return reorderColumns(tx, model, s, slices.Concat(desired, extras))
+		if err := reorderColumns(tx, model, s, slices.Concat(desired, extras)); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -279,21 +282,51 @@ func MustResetTables(tx *gorm.DB, models ...any) {
 	}
 }
 
-// Reset is a strategy to create database and drop the database, it will faster than turncate and
-// most important it is affinity with dev mode while you are first design your database
-func Reset(dbName, driverName, dataSourceName string) error {
-	if err := validateDBName(dbName); err != nil {
+// sqlDriverOf maps a GORM driver name to the database/sql driver that must be
+// handed to sql.Open. GORM's dialectors blank-import their sql driver, so these
+// are already registered by the time this package loads; the names simply do
+// not match the GORM names ("sqlite" -> "sqlite3", "postgres" -> "pgx", ...).
+//
+// The second return value reports whether the driver is server-based, i.e.
+// whether CREATE/DROP DATABASE is meaningful. File-backed sqlite databases
+// create themselves on demand and have no "server" to connect to.
+func sqlDriverOf(driverName string) (string, bool, error) {
+	switch driverName {
+	case "mysql", "mariadb":
+		return "mysql", true, nil
+	case "postgres", "postgresql":
+		return "pgx", true, nil
+	case "sqlserver", "mssql":
+		return "sqlserver", true, nil
+	case "clickhouse":
+		return "clickhouse", true, nil
+	case "sqlite", "sqlite3":
+		return "sqlite3", false, nil
+	default:
+		return "", false, fmt.Errorf(
+			"unsupported database driver: %s (supported: mysql, mariadb, postgres, sqlserver, clickhouse, sqlite)",
+			driverName,
+		)
+	}
+}
+
+// createDatabase opens a connection to the server described by dataSourceName
+// and creates dbName. It is shared by AutoCreate and Reset.
+func createDatabase(dbName, driverName, dataSourceName string) error {
+	driver, serverBased, err := sqlDriverOf(driverName)
+	if err != nil {
 		return err
 	}
-	db, err := sql.Open(driverName, dataSourceName)
+	if !serverBased {
+		// A file-based database is created by the driver on first use; issuing
+		// CREATE DATABASE against it is not supported and not needed.
+		return nil
+	}
+	db, err := sql.Open(driver, dataSourceName)
 	if err != nil {
-		return fmt.Errorf("failed to connect tt server: %w", err)
+		return fmt.Errorf("failed to connect to database server: %w", err)
 	}
 	defer db.Close()
-	dropQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)
-	if _, err := db.Exec(dropQuery); err != nil {
-		return fmt.Errorf("failed to drop database %s: %w", dbName, err)
-	}
 	createQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbName)
 	if _, err := db.Exec(createQuery); err != nil {
 		return fmt.Errorf("failed to create database %s: %w", dbName, err)
@@ -301,18 +334,48 @@ func Reset(dbName, driverName, dataSourceName string) error {
 	return nil
 }
 
-// AutoCreate creates a database if it does not already exist using the provided driver and data source.
-func AutoCreate(dbName, driverName, dataSourceName string) {
+// Reset drops the configured database and recreates it empty. It is faster than
+// truncating every table and is the intended workflow while designing a schema
+// in development.
+//
+// Reset only supports server-based drivers (mysql, mariadb, postgres, sqlserver,
+// clickhouse). For sqlite it is a no-op: delete the database file instead.
+func Reset(dbName, driverName, dataSourceName string) error {
 	if err := validateDBName(dbName); err != nil {
-		panic(fmt.Errorf("failed to create database: %w", err))
+		return err
 	}
-	db, err := sql.Open(driverName, dataSourceName)
+	driver, serverBased, err := sqlDriverOf(driverName)
 	if err != nil {
-		panic(fmt.Errorf("failed to connect to database: %w", err))
+		return err
+	}
+	if !serverBased {
+		return nil
+	}
+	db, err := sql.Open(driver, dataSourceName)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database server: %w", err)
 	}
 	defer db.Close()
-	createQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbName)
-	if _, err := db.Exec(createQuery); err != nil {
-		panic(fmt.Errorf("failed to create database %s: %w", dbName, err))
+	dropQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)
+	if _, err := db.Exec(dropQuery); err != nil {
+		return fmt.Errorf("failed to drop database %s: %w", dbName, err)
 	}
+	return createDatabase(dbName, driverName, dataSourceName)
+}
+
+// AutoCreate creates a database if it does not already exist using the provided
+// driver and data source. It panics on failure; use AutoCreateE for error
+// handling.
+func AutoCreate(dbName, driverName, dataSourceName string) {
+	if err := AutoCreateE(dbName, driverName, dataSourceName); err != nil {
+		panic(fmt.Errorf("failed to create database: %w", err))
+	}
+}
+
+// AutoCreateE is like AutoCreate but returns the error instead of panicking.
+func AutoCreateE(dbName, driverName, dataSourceName string) error {
+	if err := validateDBName(dbName); err != nil {
+		return err
+	}
+	return createDatabase(dbName, driverName, dataSourceName)
 }

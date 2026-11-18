@@ -2,20 +2,25 @@
 package concur
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
+
+	"github.com/natholdallas/natools4go/narder"
 )
 
-// panicHandler is invoked whenever a task panics. It defaults to re-panicking
-// after recording, so the caller can decide. Override via SetPanicHandler.
+// panicHandler is invoked whenever a task panics. When nil the panic is logged
+// through narder and swallowed, so one failing task cannot take down the whole
+// process. Set a handler via SetPanicHandler to escalate (e.g. re-panic for
+// fail-fast service startup).
 var (
 	panicHandlerMu sync.RWMutex
 	panicHandler   func(v any, stack []byte) = nil
 )
 
 // SetPanicHandler overrides how recovered panics are reported. When nil (the
-// default), panics are re-raised via runtime.Goexit-free panic after logging
-// the stack trace.
+// default), panics are logged at ERROR level and swallowed. Pass a handler that
+// re-panics when the caller wants fail-fast semantics.
 func SetPanicHandler(fn func(v any, stack []byte)) {
 	panicHandlerMu.Lock()
 	panicHandler = fn
@@ -33,7 +38,9 @@ func recoverPanic() {
 			fn(r, stack[:n])
 			return
 		}
-		panic(r)
+		// A panic inside a goroutine cannot be recovered by the caller, so
+		// re-panicking here terminates the process. Log and swallow instead.
+		narder.Error(fmt.Sprintf("concur: task panicked: %v\n%s", r, stack[:n]))
 	}
 }
 

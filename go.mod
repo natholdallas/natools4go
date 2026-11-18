@@ -12,6 +12,7 @@ require (
 	github.com/spf13/cast v1.9.2
 	github.com/spf13/viper v1.20.1
 	golang.org/x/crypto v0.52.0
+	golang.org/x/term v0.43.0
 	gorm.io/driver/clickhouse v0.7.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.2
