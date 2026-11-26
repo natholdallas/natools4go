@@ -203,7 +203,7 @@ func Exec(tx *gorm.DB, sql string, values ...any) *gorm.DB {
 	return tx.Exec(sql, values...)
 }
 
-// Begin starts a transaction.
+// Transaction runs fc inside a database transaction.
 func Transaction(tx *gorm.DB, fc func(tx *gorm.DB) error, opts ...*sql.TxOptions) error {
 	return tx.Transaction(fc, opts...)
 }

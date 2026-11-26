@@ -186,9 +186,9 @@ func rebuildSQLite(tx *gorm.DB, table string, actual, order []string) error {
 		if err := db.Raw("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?", table).Row().Scan(&ddl); err != nil {
 			return fmt.Errorf("orms: read definition of %s: %w", table, err)
 		}
-		doc, err := parseCreateTable(ddl)
-		if err != nil {
-			return err
+		doc, parseErr := parseCreateTable(ddl)
+		if parseErr != nil {
+			return parseErr
 		}
 		reordered := reorderItems(doc, actual, order)
 
@@ -201,7 +201,7 @@ func rebuildSQLite(tx *gorm.DB, table string, actual, order []string) error {
 		colList := quotedColumnList("sqlite", cols)
 		insertSQL := "INSERT INTO " + qnew + " (" + colList + ") SELECT " + colList + " FROM " + qold
 
-		err = db.Transaction(func(tx2 *gorm.DB) error {
+		txErr := db.Transaction(func(tx2 *gorm.DB) error {
 			if err := tx2.Exec("DROP TABLE IF EXISTS " + qnew).Error; err != nil {
 				return err
 			}
@@ -211,13 +211,13 @@ func rebuildSQLite(tx *gorm.DB, table string, actual, order []string) error {
 			if err := tx2.Exec(insertSQL).Error; err != nil {
 				return err
 			}
-			before, err := countRows(tx2, qold)
-			if err != nil {
-				return err
+			before, countErr := countRows(tx2, qold)
+			if countErr != nil {
+				return countErr
 			}
-			after, err := countRows(tx2, qnew)
-			if err != nil {
-				return err
+			after, countErr := countRows(tx2, qnew)
+			if countErr != nil {
+				return countErr
 			}
 			if before != after {
 				return fmt.Errorf("orms: refusing to rebuild %s: copied %d of %d rows", table, after, before)
@@ -246,9 +246,9 @@ func rebuildSQLite(tx *gorm.DB, table string, actual, order []string) error {
 		})
 		// A failed transaction leaves the temporary table behind; the original
 		// table is still intact because it is only dropped inside the commit.
-		if err != nil {
+		if txErr != nil {
 			db.Exec("DROP TABLE IF EXISTS " + qnew)
-			return err
+			return txErr
 		}
 		return nil
 	})
@@ -262,9 +262,9 @@ func rebuildClickHouse(tx *gorm.DB, table string, actual, order []string) error 
 	if err := tx.Raw("SHOW CREATE TABLE ?", clause.Table{Name: table}).Row().Scan(&ddl); err != nil {
 		return fmt.Errorf("orms: read definition of %s: %w", table, err)
 	}
-	doc, err := parseCreateTable(ddl)
-	if err != nil {
-		return err
+	doc, parseErr := parseCreateTable(ddl)
+	if parseErr != nil {
+		return parseErr
 	}
 	reordered := reorderItems(doc, actual, order)
 
@@ -293,15 +293,15 @@ func rebuildClickHouse(tx *gorm.DB, table string, actual, order []string) error 
 		cleanup()
 		return err
 	}
-	before, err := countRows(tx, qold)
-	if err != nil {
+	before, countErr := countRows(tx, qold)
+	if countErr != nil {
 		cleanup()
-		return err
+		return countErr
 	}
-	after, err := countRows(tx, qnew)
-	if err != nil {
+	after, countErr := countRows(tx, qnew)
+	if countErr != nil {
 		cleanup()
-		return err
+		return countErr
 	}
 	if before != after {
 		cleanup()

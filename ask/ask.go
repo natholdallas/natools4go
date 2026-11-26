@@ -1,3 +1,4 @@
+// Package ask provides interactive prompts that read from stdin.
 package ask
 
 import (

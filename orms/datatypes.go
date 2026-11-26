@@ -57,7 +57,7 @@ func (Dict[T]) GormDBDataType(db *gorm.DB, field *schema.Field) string {
 // jsonDBDataType maps a dialect to its JSON storage type. Drivers without a
 // JSON type fall back to text, which still stores the marshalled value.
 func jsonDBDataType(db *gorm.DB) string {
-	switch db.Dialector.Name() {
+	switch db.Name() {
 	case "mysql", "mariadb":
 		return "json"
 	case "postgres":
