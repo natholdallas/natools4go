@@ -17,12 +17,12 @@
 | `concur` | `Go`/`Run`, bounded `Pool`, panic recovery + `SetPanicHandler` |
 | `ask` | Stdin prompts (`Read[T]`, `Line`, `ReadPassword`, `Confirm`) |
 | `dbg` | Debug printing through `narder` (`JSON`, `Struct`, `Err`, `File`) |
-| `flags` | `Run(cond, fn)` conditional launcher; exits the process |
+| `flags` | `Run(cond, fn)` / `RunE(cond, fn)` conditional launchers; exit the process |
 | `narder` | Shared leveled logger (`Info/Warn/Error`), call-site resolution |
 | `vipers` | Typed Viper getters + default values, hot-reload handlers |
 | `fext` | Fiber v3 binding/validation, `Fail` error envelope, JWT, cache, listen |
 | `orms` | GORM wrapper: dialects, DSNs, migrations, generic models, `Query[T]`, pagination |
-| `pwd` | Argon2id `Hash`/`Verify`/`IsHashed` (not listed in README) |
+| `pwd` | Argon2id `Hash`/`MustHash`/`TryHash`/`Verify`/`IsHashed` (not listed in README) |
 
 ## Architecture & Data Flow
 
@@ -73,12 +73,12 @@ Unset DSNs are skipped individually; with none set the test calls `t.Skip`. Comp
 ## Code Conventions & Common Patterns
 
 - **Formatting:** `gofmt` + `gofumpt`; tabs (width 4). Imports are grouped stdlib / third-party / `github.com/natholdallas/natools4go` (blank line before the local group). The `.golangci.yml` comment's `Prefix(webtplmst)` is stale — use the module prefix above.
-- **Naming:** `MustX` panics (`MustNew`, `MustAutoMigrate`, `MustStruct`, `MustConfig`); `IX`/`TryX` swallow errors and return zero values (`IFind`, `IString`, `TryHash`); `XE` returns an error (`ToE`, `ParseIntE`, `AutoCreateE`). In `fext`, `*Parser` binds only and `*Varser` binds + validates.
-- **Errors:** return errors, wrap with `fmt.Errorf("context: %w", err)`; libraries do not call `log.Fatal`/`os.Exit` (the exception is `flags.Run` by design). Log-and-return is avoided; `dbg` helpers log because they cannot return errors.
+- **Naming:** `MustX` panics (`MustNew`, `MustAutoMigrate`, `MustStruct`, `MustConfig`, `MustHash`); `IX`/`TryX` swallow errors and return zero values (`IFind`, `IString`, `TryHash`); `XE` returns an error (`ToE`, `ParseIntE`, `AutoCreateE`). In `fext`, `*Parser` binds only and `*Varser` binds + validates.
+- **Errors:** return errors, wrap with `fmt.Errorf("context: %w", err)`; libraries do not call `log.Fatal`/`os.Exit` (the exception is `flags.Run`/`flags.RunE` by design). Log-and-return is avoided; `dbg` helpers log because they cannot return errors.
 - **Generics over reflection:** typed wrappers (`Query[T]`, `Read[T]`, `List[T]`, `Page[T]`); reflection is only indirect via `encoding/json`, mapstructure, validator, Viper. Use `any`, never `interface{}` (revive `use-any`).
 - **Optional arguments:** trailing variadics (`pretty ...bool`, `endtime ...time.Duration`, `prepare ...bool`), resolved with `slice.Defu`.
 - **Concurrency:** use `concur.Go`/`Run` and `Pool`; call `Wait` before `Close`. Panics in tasks are recovered, logged, and swallowed unless `SetPanicHandler` escalates. SQLite's single-connection pool means do not query the same `*gorm.DB` concurrently with an open transaction.
-- **Security invariants (do not weaken):** `orms.Delete` rejects non-numeric string conditions (`DeleteByID`/`DeleteWhere` are the safe paths); `Sorter.Valid` allows bare identifiers only; DB names go through `validateDBName` + `quoteIdent`; `va` redacts credentials as `***`; JWT parsing accepts HMAC only and requires expiry; `fext.Fail.System` is serialized only when `narder.IsDebug()`, while unknown errors and `*fiber.Error` messages at status ≥500 are masked.
+- **Security invariants (do not weaken):** `orms.Delete` rejects non-numeric string conditions (`DeleteByID`/`DeleteWhere` are the safe paths); `Sorter.Valid` allows bare identifiers only; DB names go through `validateDBName` + `quoteIdent`; `va` redacts credentials as `***`; JWT parsing accepts HMAC only and requires expiry; `fext.Fail.System` is serialized only when `narder.IsDebug()`, while unknown errors, `*fiber.Error` and `*Fail` messages at status ≥500 are masked.
 - **Global hooks:** configure `narder.SetPrinter`/`SetDebugMode`, `fext.SetErrorHandler`, and `vipers.Watch` (first call only) at startup; `vipers.RegisterUpdateHandler` adds later handlers.
 
 ## Important Files

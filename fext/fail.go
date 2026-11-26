@@ -1,7 +1,6 @@
 package fext
 
 import (
-	"fmt"
 	"sync/atomic"
 
 	"github.com/gofiber/fiber/v3"
@@ -41,33 +40,48 @@ func convertError(err error) error {
 	return err
 }
 
-// ErrorHandler is optimized error handler impl
+// ErrorHandler is optimized error handler impl.
+//
+// Status resolution:
+//   - *Fail with an explicit Status uses it, except that a value outside
+//     400..599 is a developer bug and becomes 500;
+//   - *Fail without Status is 500 when it carries a System error (a server
+//     fault) and 400 otherwise (a developer-authored client rejection);
+//   - an entirely empty *Fail is 500: it carries no intent;
+//   - *fiber.Error uses its Code;
+//   - any other error is 500.
+//
+// A 5xx body never echoes internal text: Message is replaced with "internal
+// server error" and the original is logged. Code survives, so clients can
+// still localize the failure.
 func ErrorHandler(c fiber.Ctx, err error) error {
-	// Default status and structure
 	status := fiber.StatusBadRequest
 	resp := Fail{}
 
-	// Optional conversion: transform raw error into *Fail
 	err = convertError(err)
 
-	// Type switch to handle different error categories
 	switch e := err.(type) {
 	case *Fail:
-		if e.Status != 0 {
-			status = e.Status
-		}
 		resp.Code = e.Code
-		resp.Message = e.Message
-
-		// A *Fail with neither a status nor a message carries no developer
-		// intent, so treat it as an internal failure rather than echoing an
-		// empty body with the default 400.
-		if e.Status == 0 && e.Message == "" {
+		switch {
+		case e.Status != 0:
+			status = e.Status
+		case e.System != nil:
 			status = fiber.StatusInternalServerError
-			resp.Message = "internal server error"
+		case e.Code == "" && e.Message == "":
+			status = fiber.StatusInternalServerError
 		}
-
-		// Handle system error visibility and logging
+		if status < fiber.StatusBadRequest || status > 599 {
+			status = fiber.StatusInternalServerError
+		}
+		if status >= fiber.StatusInternalServerError {
+			if e.Message != "" {
+				narder.Errorf("%s %s: %s", c.Method(), c.Path(), e.Message)
+			}
+			resp.Message = "internal server error"
+		} else {
+			resp.Message = e.Message
+		}
 		if e.System != nil {
 			if narder.IsDebug() {
 				// Convert error to string for reliable JSON serialization
@@ -77,18 +91,18 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 					resp.System = e.System
 				}
 			}
-			if sysErr, ok := e.System.(error); ok {
-				narder.Error(sysErr)
-			}
+			narder.Errorf("%s %s: %v", c.Method(), c.Path(), e.System)
 		}
 
 	case *fiber.Error:
 		if e.Code != 0 {
 			status = e.Code
 		}
-		// Messages attached to 5xx errors are usually internal detail (driver
-		// errors, upstream failures); only client errors are safe to echo.
-		if e.Code >= 500 {
+		if status < fiber.StatusBadRequest || status > 599 {
+			status = fiber.StatusInternalServerError
+		}
+		if status >= fiber.StatusInternalServerError {
+			narder.Errorf("%s %s: %s", c.Method(), c.Path(), e.Message)
 			resp.Message = "internal server error"
 		} else {
 			resp.Message = e.Message
@@ -100,7 +114,7 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 		// message instead.
 		status = fiber.StatusInternalServerError
 		resp.Message = "internal server error"
-		narder.Error(fmt.Sprintf("%s %s: %v", c.Method(), c.Path(), err))
+		narder.Errorf("%s %s: %v", c.Method(), c.Path(), err)
 	}
 	return c.Status(status).JSON(resp)
 }

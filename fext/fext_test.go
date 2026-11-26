@@ -1,6 +1,7 @@
 package fext
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -215,5 +216,128 @@ func TestGetAuthorizationRejectsForeignScheme(t *testing.T) {
 	}
 	if body := readBody(resp); body != "" {
 		t.Errorf("authorization = %q, want empty for mismatched scheme", body)
+	}
+}
+
+func TestErrorHandlerCodeOnlyIsClientError(t *testing.T) {
+	narder.SetDebugMode(false)
+	app := newTestApp()
+	app.Post("/login", func(c fiber.Ctx) error {
+		return &Fail{Code: "err.sign.in.failed"}
+	})
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodPost, "/login", nil))
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+	body := readBody(resp)
+	if !strings.Contains(body, `"code":"err.sign.in.failed"`) {
+		t.Errorf("body = %s, want the error code", body)
+	}
+	if strings.Contains(body, "internal server error") {
+		t.Errorf("code-only Fail must not be masked: %s", body)
+	}
+}
+
+func TestErrorHandlerSystemWithoutStatusIsServerError(t *testing.T) {
+	narder.SetDebugMode(false)
+	app := newTestApp()
+	app.Post("/create", func(c fiber.Ctx) error {
+		return &Fail{Code: "err.data.create", System: &plainErr{"db down"}}
+	})
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodPost, "/create", nil))
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", resp.StatusCode)
+	}
+	body := readBody(resp)
+	if !strings.Contains(body, `"code":"err.data.create"`) || !strings.Contains(body, "internal server error") {
+		t.Errorf("body = %s, want code plus masked message", body)
+	}
+	if strings.Contains(body, "db down") {
+		t.Errorf("system detail leaked: %s", body)
+	}
+}
+
+func TestErrorHandlerServerMessageMasked(t *testing.T) {
+	narder.SetDebugMode(false)
+	app := newTestApp()
+	app.Get("/", func(c fiber.Ctx) error {
+		return &Fail{Status: 500, Message: "sql: secret"}
+	})
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/", nil))
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", resp.StatusCode)
+	}
+	if body := readBody(resp); strings.Contains(body, "sql: secret") {
+		t.Errorf("5xx message leaked: %s", body)
+	}
+}
+
+func TestErrorHandlerIllegalStatus(t *testing.T) {
+	narder.SetDebugMode(false)
+	app := newTestApp()
+	app.Get("/", func(c fiber.Ctx) error {
+		return &Fail{Status: fiber.StatusOK, Message: "x"}
+	})
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/", nil))
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("status = %d, want 500 for a non-error status", resp.StatusCode)
+	}
+}
+
+func TestErrorHandlerEmptyFail(t *testing.T) {
+	narder.SetDebugMode(false)
+	app := newTestApp()
+	app.Get("/", func(c fiber.Ctx) error {
+		return &Fail{}
+	})
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/", nil))
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("status = %d, want 500 for an empty Fail", resp.StatusCode)
+	}
+}
+
+func TestErrorHandlerLogsFiberServerError(t *testing.T) {
+	narder.SetDebugMode(false)
+	var buf bytes.Buffer
+	narder.SetOutput(&buf)
+	t.Cleanup(func() { narder.SetOutput(nil) })
+
+	app := newTestApp()
+	app.Get("/", func(c fiber.Ctx) error {
+		return fiber.NewError(fiber.StatusInternalServerError, "db down")
+	})
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/", nil))
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", resp.StatusCode)
+	}
+	if body := readBody(resp); strings.Contains(body, "db down") {
+		t.Errorf("fiber 5xx message leaked: %s", body)
+	}
+	if logs := buf.String(); !strings.Contains(logs, "db down") {
+		t.Errorf("logs = %q, want the masked message recorded", logs)
 	}
 }

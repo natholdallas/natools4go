@@ -81,3 +81,26 @@ func TestParseTokenRequiresExpiration(t *testing.T) {
 		t.Error("ParseToken accepted a token without exp")
 	}
 }
+
+func TestGenTokenWithID(t *testing.T) {
+	token, err := GenTokenWithID("u-1", "jti-1", "s3cret", time.Hour)
+	if err != nil {
+		t.Fatalf("GenTokenWithID: %v", err)
+	}
+	claims, err := ParseToken(token, "s3cret")
+	if err != nil {
+		t.Fatalf("ParseToken: %v", err)
+	}
+	if claims.ID != "jti-1" {
+		t.Errorf("ID = %q, want jti-1", claims.ID)
+	}
+	if claims.Subject != "u-1" {
+		t.Errorf("Subject = %q, want u-1", claims.Subject)
+	}
+	if claims.IssuedAt == nil {
+		t.Error("IssuedAt should be set")
+	}
+	if claims.ExpiresAt == nil {
+		t.Error("ExpiresAt should be set")
+	}
+}

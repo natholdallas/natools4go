@@ -53,10 +53,24 @@ func Hash(plain string) (string, error) {
 		base64.RawStdEncoding.EncodeToString(key), nil
 }
 
+// TryHash is Hash for callers that cannot propagate the error.
+// A failed hash returns "" — an empty column is not a usable credential; use
+// MustHash or Hash.
 func TryHash(plain string) string {
 	hash, err := Hash(plain)
 	if err != nil {
 		return ""
+	}
+	return hash
+}
+
+// MustHash is Hash without the error return. A failed hash must never be
+// stored as an empty credential, so an unavailable CSPRNG panics the same way
+// rands.Crypto does; use Hash when the caller can propagate the error.
+func MustHash(plain string) string {
+	hash, err := Hash(plain)
+	if err != nil {
+		panic("pwd: crypto/rand unavailable: " + err.Error())
 	}
 	return hash
 }

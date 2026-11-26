@@ -89,3 +89,16 @@ func TestVerifyRejectsOtherArgonVersion(t *testing.T) {
 		t.Fatal("Verify accepted an argon2 v=16 hash")
 	}
 }
+
+func TestMustHash(t *testing.T) {
+	h := MustHash("123456")
+	if !IsHashed(h) {
+		t.Fatalf("expected hashed prefix, got %q", h)
+	}
+	if !Verify("123456", h) {
+		t.Fatal("MustHash output must verify the original password")
+	}
+	if Verify("wrong", h) {
+		t.Fatal("MustHash output must reject a different password")
+	}
+}

@@ -52,6 +52,20 @@ func GenToken(ID string, secretKey string, endtime ...time.Duration) (string, er
 	return token.SignedString([]byte(secretKey))
 }
 
+// GenTokenWithID issues an HS256 token whose ID (jti) is distinct from its
+// Subject: a refresh token needs the jti as its revocation key while the
+// subject stays the user. GenToken keeps ID == Subject for access tokens.
+func GenTokenWithID(subject, id, secretKey string, ttl time.Duration) (string, error) {
+	now := time.Now()
+	claims := jwt.RegisteredClaims{
+		ID:        id,
+		Subject:   subject,
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secretKey))
+}
+
 // ParseToken decodes and validates a JWT string against the provided secret key.
 // It returns the [jwt.RegisteredClaims] if successful.
 func ParseToken(token, secretKey string) (claims jwt.RegisteredClaims, err error) {
@@ -82,6 +96,11 @@ func NewJWT(secretKey string) JWT {
 // GenToken is a method wrapper for generating a token using the JWT instance's secret key.
 func (j *JWT) GenToken(ID string, endtime ...time.Duration) (string, error) {
 	return GenToken(ID, j.SecretKey, endtime...)
+}
+
+// GenTokenWithID is the method wrapper for GenTokenWithID.
+func (j *JWT) GenTokenWithID(subject, id string, ttl time.Duration) (string, error) {
+	return GenTokenWithID(subject, id, j.SecretKey, ttl)
 }
 
 // ParseToken is a method wrapper for parsing a token using the JWT instance's secret key.
