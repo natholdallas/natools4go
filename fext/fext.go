@@ -168,6 +168,10 @@ func SendString(c fiber.Ctx, status int, str string) error {
 // GetAuthorization extracts the credential part from the "Authorization" header.
 // It removes the scheme prefix (e.g., "Bearer ") from the header value.
 // If no custom scheme is provided, it defaults to "Bearer ".
+//
+// A header whose scheme does not match (e.g. "Basic xxx" when "Bearer " is
+// expected) yields "" rather than the whole header: handing a Basic credential
+// to a token verifier is never useful.
 func GetAuthorization(c fiber.Ctx, scheme ...string) string {
 	auth := c.Get(fiber.HeaderAuthorization)
 	if auth == "" {
@@ -175,8 +179,8 @@ func GetAuthorization(c fiber.Ctx, scheme ...string) string {
 	}
 	prefix := strs.ToEnd(slice.Defu("Bearer ", scheme), strs.Space)
 	// Case-insensitive prefix removal for better compatibility
-	if len(auth) >= len(prefix) && strings.EqualFold(auth[:len(prefix)], prefix) {
-		return strings.TrimSpace(auth[len(prefix):])
+	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+		return ""
 	}
-	return auth
+	return strings.TrimSpace(auth[len(prefix):])
 }

@@ -3,20 +3,13 @@
 package orms
 
 import (
-	"database/sql"
 	"fmt"
 	"slices"
 	"time"
 
-	"gorm.io/driver/clickhouse"
-	"gorm.io/driver/mysql"
-	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
-	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
-	"github.com/natholdallas/natools4go/slice"
+	"github.com/natholdallas/natools4go/narder"
 )
 
 // New returns a gorm.DB instance.
@@ -33,6 +26,15 @@ func New(dialector gorm.Dialector, opts ...gorm.Option) (*gorm.DB, error) {
 	}
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(100)
+	// A file-backed SQLite database allows one writer at a time; a multi-
+	// connection pool turns concurrent writes into SQLITE_BUSY errors. Pin the
+	// pool to a single connection. Consequence: do not start a goroutine that
+	// queries the same *gorm.DB while a transaction on it is open — it will wait
+	// for the only connection.
+	if dialector != nil && dialector.Name() == "sqlite" {
+		db.SetMaxOpenConns(1)
+		db.SetMaxIdleConns(1)
+	}
 	db.SetConnMaxLifetime(30 * time.Minute)
 	db.SetConnMaxIdleTime(5 * time.Minute)
 	return tx, nil
@@ -46,94 +48,19 @@ func MustNew(dialector gorm.Dialector, opts ...gorm.Option) *gorm.DB {
 	return tx
 }
 
-// DSN returns the dsn for the given driver name, dsn, and options.
-func DSN(driverName, name, username, password, host, port string) (string, error) {
-	switch driverName {
-	case "mysql":
-		return fmt.Sprintf("%s:%s@tcp(%s:%s)/", username, password, host, port), nil
-	case "postgres", "postgresql":
-		return fmt.Sprintf("host=%s user=%s password=%s port=%s",
-			host, username, password, port), nil
-	case "sqlite", "sqlite3":
-		return name, nil
-	case "sqlserver", "mssql":
-		return fmt.Sprintf("sqlserver://%s:%s@%s:%s", username, password, host, port), nil
-	case "clickhouse":
-		return fmt.Sprintf("tcp://%s:%s?username=%s&password=%s", host, port, username, password), nil
-	default:
-		return "", fmt.Errorf("unsupported database driver: %s (supported: mysql, postgres, sqlite, sqlserver, clickhouse)", driverName)
-	}
-}
-
-func MustDSN(driverName, name, username, password, host, port string) string {
-	dsn, err := DSN(driverName, name, username, password, host, port)
-	if err != nil {
-		panic(fmt.Errorf("failed to generate DSN: %w", err))
-	}
-	return dsn
-}
-
-// Dialector returns a gorm.Dialector for the given driver name, dsn, and options.
-func Dialector(driverName string, dsn, name, query string, prepare ...bool) (gorm.Dialector, error) {
-	needPrepare := slice.Defu(false, prepare)
-	if driverName != "sqlite" && needPrepare {
-		dn := driverName
-		if dn == "mariadb" {
-			dn = "mysql"
-		}
-		AutoCreate(name, dn, dsn)
-	}
-	switch driverName {
-	case "mysql", "mariadb":
-		d := dsn + name
-		if query != "" {
-			d += "?" + query
-		}
-		return mysql.Open(d), nil
-	case "postgres", "postgresql":
-		d := dsn + " dbname=" + name
-		if query != "" {
-			d += " " + query
-		}
-		return postgres.Open(d), nil
-	case "sqlite", "sqlite3":
-		d := name
-		if query != "" {
-			d += "?" + query
-		}
-		return sqlite.Open(d), nil
-	case "sqlserver", "mssql":
-		d := dsn + "?database=" + name
-		if query != "" {
-			d += "&" + query
-		}
-		return sqlserver.Open(d), nil
-	case "clickhouse":
-		d := dsn + "&database=" + name
-		if query != "" {
-			d += "&" + query
-		}
-		return clickhouse.Open(d), nil
-	default:
-		return nil, fmt.Errorf("unsupported database driver: %s (supported: mysql, postgres, sqlite, sqlserver, clickhouse)", driverName)
-	}
-}
-
-func MustDialector(driverName string, dsn, name, query string, prepare ...bool) gorm.Dialector {
-	d, err := Dialector(driverName, dsn, name, query, prepare...)
-	if err != nil {
-		panic(fmt.Errorf("failed to open database: %w", err))
-	}
-	return d
-}
-
 // AutoMigrate creates tables for the given models.
+//
+// MySQL/MariaDB get the InnoDB engine plus an explicit charset/collation; GORM
+// appends the option string directly after the closing parenthesis of the
+// CREATE TABLE, so the leading space is intentional.
+//
+// SQL Server has no table-level COLLATE clause (case sensitivity is a
+// database- or column-level setting), so no table options are set there — the
+// previous value emitted syntactically invalid DDL.
 func AutoMigrate(tx *gorm.DB, dst ...any) error {
 	switch tx.Name() {
 	case "mysql", "mariadb":
-		tx = tx.Set("gorm:table_options", "COLLATE=utf8mb4_bin")
-	case "sqlserver", "mssql":
-		tx = tx.Set("gorm:table_options", "COLLATE=SQL_Latin1_General_CP1_CS_AS")
+		tx = tx.Set("gorm:table_options", " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin")
 	}
 	err := tx.AutoMigrate(dst...)
 	return err
@@ -201,31 +128,32 @@ func syncTables(tx *gorm.DB, mode syncMode, models ...any) error {
 			continue
 		}
 
-		actual, err := columnPositions(tx, model)
+		actual, err := columnOrder(tx, model)
 		if err != nil {
 			return err
 		}
 		desired := desiredColumns(s)
 
-		// hard mode: drop columns that no longer exist in the struct (skip primary key)
-		extras := []string{}
+		var extras []string
 		if mode == modeHard {
-			for name := range actual {
-				if slices.Contains(desired, name) {
-					continue
-				}
-				field := s.LookUpField(name)
-				if field != nil && field.PrimaryKey {
-					continue
-				}
-				fmt.Printf("sync %s: drop column %s\n", table, name)
-				if err := tx.Migrator().DropColumn(model, name); err != nil {
-					return err
+			// MySQL/MariaDB can drop in place before the in-place reorder. Other
+			// drivers skip DropColumn (GORM's SQLite implementation drops the
+			// table's indexes with the column) and simply exclude the column
+			// from the rebuilt target instead.
+			if tx.Name() == "mysql" || tx.Name() == "mariadb" {
+				for _, name := range actual {
+					if slices.Contains(desired, name) {
+						continue
+					}
+					narder.Infof("sync %s: drop column %s", table, name)
+					if err := tx.Migrator().DropColumn(model, name); err != nil {
+						return err
+					}
 				}
 			}
 		} else {
 			// soft mode: keep database-only columns, sorted by name, at the end
-			for name := range actual {
+			for _, name := range actual {
 				if !slices.Contains(desired, name) {
 					extras = append(extras, name)
 				}
@@ -233,18 +161,24 @@ func syncTables(tx *gorm.DB, mode syncMode, models ...any) error {
 			slices.Sort(extras)
 		}
 
-		// add columns that are missing from the database
+		// Add columns missing from the database. They must exist in the old
+		// table before the rebuild copies the data across.
+		have := make(map[string]bool, len(actual))
+		for _, name := range actual {
+			have[name] = true
+		}
 		for _, name := range desired {
-			if _, ok := actual[name]; ok {
+			if have[name] {
 				continue
 			}
-			fmt.Printf("sync %s: add column %s\n", table, name)
+			narder.Infof("sync %s: add column %s", table, name)
 			if err := tx.Migrator().AddColumn(model, name); err != nil {
 				return err
 			}
 		}
 
-		// reorder columns to match the declaration order, keeping extras last
+		// Reorder to the declaration order, keeping soft-mode extras last.
+		// reorderColumns is a no-op when the physical order already matches.
 		if err := reorderColumns(tx, model, s, slices.Concat(desired, extras)); err != nil {
 			return err
 		}
@@ -254,128 +188,44 @@ func syncTables(tx *gorm.DB, mode syncMode, models ...any) error {
 
 // ResetTables drops and recreates every registered table from its struct so the
 // column order exactly matches the declaration order. All data is lost.
+//
+// Tables are dropped with the migrator, never with CASCADE: a table that is
+// still referenced by another table outside models makes PostgreSQL and SQL
+// Server return an error instead of silently deleting dependent rows.
+//
+// Everything runs on a single dedicated connection: MySQL's
+// SET FOREIGN_KEY_CHECKS is session-scoped, and issuing it on a different pooled
+// connection than the DDL silently leaves the checks enabled.
 func ResetTables(tx *gorm.DB, models ...any) error {
-	switch tx.Name() {
-	case "mysql", "mariadb":
-		tx.Exec("SET FOREIGN_KEY_CHECKS=0")
-		defer tx.Exec("SET FOREIGN_KEY_CHECKS=1")
-	}
-	for _, model := range models {
-		s, err := schemaOf(tx, model)
-		if err != nil {
-			return err
+	return tx.Connection(func(db *gorm.DB) error {
+		switch db.Name() {
+		case "mysql", "mariadb":
+			if err := db.Exec("SET FOREIGN_KEY_CHECKS=0").Error; err != nil {
+				return err
+			}
+			defer db.Exec("SET FOREIGN_KEY_CHECKS=1")
 		}
-		if err := tx.Exec("DROP TABLE IF EXISTS ?", clause.Table{Name: s.Table}).Error; err != nil {
-			return err
+		for _, model := range models {
+			s, err := schemaOf(db, model)
+			if err != nil {
+				return err
+			}
+			// The migrator quotes the table name per driver; a raw DROP TABLE
+			// built from the schema name would break on reserved words.
+			if err := db.Migrator().DropTable(model); err != nil {
+				return err
+			}
+			if err := AutoMigrate(db, model); err != nil {
+				return err
+			}
+			narder.Infof("reset table %s", s.Table)
 		}
-		if err := AutoMigrate(tx, model); err != nil {
-			return err
-		}
-		fmt.Printf("reset table %s\n", s.Table)
-	}
-	return nil
+		return nil
+	})
 }
 
 func MustResetTables(tx *gorm.DB, models ...any) {
 	if err := ResetTables(tx, models...); err != nil {
 		panic(fmt.Errorf("failed to reset tables: %w", err))
 	}
-}
-
-// sqlDriverOf maps a GORM driver name to the database/sql driver that must be
-// handed to sql.Open. GORM's dialectors blank-import their sql driver, so these
-// are already registered by the time this package loads; the names simply do
-// not match the GORM names ("sqlite" -> "sqlite3", "postgres" -> "pgx", ...).
-//
-// The second return value reports whether the driver is server-based, i.e.
-// whether CREATE/DROP DATABASE is meaningful. File-backed sqlite databases
-// create themselves on demand and have no "server" to connect to.
-func sqlDriverOf(driverName string) (string, bool, error) {
-	switch driverName {
-	case "mysql", "mariadb":
-		return "mysql", true, nil
-	case "postgres", "postgresql":
-		return "pgx", true, nil
-	case "sqlserver", "mssql":
-		return "sqlserver", true, nil
-	case "clickhouse":
-		return "clickhouse", true, nil
-	case "sqlite", "sqlite3":
-		return "sqlite3", false, nil
-	default:
-		return "", false, fmt.Errorf(
-			"unsupported database driver: %s (supported: mysql, mariadb, postgres, sqlserver, clickhouse, sqlite)",
-			driverName,
-		)
-	}
-}
-
-// createDatabase opens a connection to the server described by dataSourceName
-// and creates dbName. It is shared by AutoCreate and Reset.
-func createDatabase(dbName, driverName, dataSourceName string) error {
-	driver, serverBased, err := sqlDriverOf(driverName)
-	if err != nil {
-		return err
-	}
-	if !serverBased {
-		// A file-based database is created by the driver on first use; issuing
-		// CREATE DATABASE against it is not supported and not needed.
-		return nil
-	}
-	db, err := sql.Open(driver, dataSourceName)
-	if err != nil {
-		return fmt.Errorf("failed to connect to database server: %w", err)
-	}
-	defer db.Close()
-	createQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbName)
-	if _, err := db.Exec(createQuery); err != nil {
-		return fmt.Errorf("failed to create database %s: %w", dbName, err)
-	}
-	return nil
-}
-
-// Reset drops the configured database and recreates it empty. It is faster than
-// truncating every table and is the intended workflow while designing a schema
-// in development.
-//
-// Reset only supports server-based drivers (mysql, mariadb, postgres, sqlserver,
-// clickhouse). For sqlite it is a no-op: delete the database file instead.
-func Reset(dbName, driverName, dataSourceName string) error {
-	if err := validateDBName(dbName); err != nil {
-		return err
-	}
-	driver, serverBased, err := sqlDriverOf(driverName)
-	if err != nil {
-		return err
-	}
-	if !serverBased {
-		return nil
-	}
-	db, err := sql.Open(driver, dataSourceName)
-	if err != nil {
-		return fmt.Errorf("failed to connect to database server: %w", err)
-	}
-	defer db.Close()
-	dropQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)
-	if _, err := db.Exec(dropQuery); err != nil {
-		return fmt.Errorf("failed to drop database %s: %w", dbName, err)
-	}
-	return createDatabase(dbName, driverName, dataSourceName)
-}
-
-// AutoCreate creates a database if it does not already exist using the provided
-// driver and data source. It panics on failure; use AutoCreateE for error
-// handling.
-func AutoCreate(dbName, driverName, dataSourceName string) {
-	if err := AutoCreateE(dbName, driverName, dataSourceName); err != nil {
-		panic(fmt.Errorf("failed to create database: %w", err))
-	}
-}
-
-// AutoCreateE is like AutoCreate but returns the error instead of panicking.
-func AutoCreateE(dbName, driverName, dataSourceName string) error {
-	if err := validateDBName(dbName); err != nil {
-		return err
-	}
-	return createDatabase(dbName, driverName, dataSourceName)
 }

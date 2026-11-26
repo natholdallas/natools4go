@@ -4,7 +4,6 @@ package va
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -13,19 +12,43 @@ import (
 // validate is the singleton validator instance used across the package.
 var validate = validator.New()
 
-// sensitiveField matches field names whose values must never appear in an error
-// message. Validation errors are routinely returned verbatim to HTTP clients
-// (see fext.Fail handlers), so echoing the offending value would leak plaintext
-// passwords, secrets and tokens into responses and logs.
-var sensitiveField = regexp.MustCompile(`(?i)pass(word|wd|phrase)?|secret|token|apikey|api_key|privatekey|salt|hash|credential`)
+// sensitiveFragments are matched as case-insensitive substrings of the struct
+// field name. They cover the names that actually carry credentials while
+// avoiding over-broad tokens: a bare "key" would redact SortKey/Mapping and a
+// bare "pin" would redact Mapping, so both are deliberately absent.
+var sensitiveFragments = []string{
+	"password", "passwd", "passphrase", "secret", "token",
+	"apikey", "api_key", "privatekey", "private_key",
+	"accesskey", "access_key", "salt", "credential",
+	"authorization", "cookie", "connstring", "connection_string", "dsn",
+}
+
+// isSensitive reports whether a field name carries a credential whose value
+// must never be echoed into an error message. Validation errors are routinely
+// returned verbatim to HTTP clients (see fext.Fail handlers), so echoing the
+// offending value would leak plaintext passwords, secrets and tokens.
+func isSensitive(field string) bool {
+	l := strings.ToLower(field)
+	for _, p := range sensitiveFragments {
+		if strings.Contains(l, p) {
+			return true
+		}
+	}
+	// Suffix/other forms that must not match in the middle of a word: a
+	// Passport field is not a password, while Pwd always is.
+	return strings.HasSuffix(l, "pwd") ||
+		strings.HasSuffix(l, "hash") ||
+		strings.Contains(l, "otp") ||
+		strings.Contains(l, "cvv")
+}
 
 // redact returns a placeholder for sensitive field names and the original value
 // otherwise.
 func redact(field, value string) string {
-	if sensitiveField.MatchString(field) {
-		if value == "" {
-			return ""
-		}
+	if value == "" {
+		return ""
+	}
+	if isSensitive(field) {
 		return "***"
 	}
 	return value

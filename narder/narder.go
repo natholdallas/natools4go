@@ -132,15 +132,22 @@ func Errorf(format string, v ...any) { emit(LevelError, fmt.Sprintf(format, v...
 // emit resolves the caller position, skipping every frame inside the
 // natools4go module, then dispatches to the active backend.
 func emit(level, msg string) {
-	file, line, depth := caller(0)
 	if p := printer.Load(); p != nil {
+		file, line, _ := caller(0)
 		(*p)(level, file, line, msg)
 		return
 	}
 	l := stdlib.Load()
+	// Without Lshortfile/Llongfile the calldepth has no effect on the output,
+	// so skip the runtime.Caller walk entirely.
+	if l.Flags()&(log.Lshortfile|log.Llongfile) == 0 {
+		_ = l.Output(2, "["+level+"] "+msg)
+		return
+	}
 	// runtime.Caller(0) inside caller() is caller itself, and inside Output it
 	// is Output itself; both count the shared frames (emit, Info/Warn/Error)
 	// identically, so depth maps 1:1 to Output's calldepth.
+	_, _, depth := caller(0)
 	_ = l.Output(depth, "["+level+"] "+msg)
 }
 

@@ -150,3 +150,18 @@ func TestCallerPredicate(t *testing.T) {
 		}
 	}
 }
+
+// TestDefaultFlagsSkipCallerResolution pins the fast path: without
+// Lshortfile/Llongfile the message is logged verbatim and no file:line is
+// resolved or printed.
+func TestDefaultFlagsSkipCallerResolution(t *testing.T) {
+	buf := captureOut(t)
+	Info("plain")
+	got := buf.String()
+	if !strings.Contains(got, "[INFO] plain") {
+		t.Errorf("output = %q, want [INFO] plain", got)
+	}
+	if strings.Contains(got, ".go:") {
+		t.Errorf("default flags should not print file:line, got %q", got)
+	}
+}

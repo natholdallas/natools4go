@@ -34,11 +34,26 @@ func Crypto(length int) string {
 	if length <= 0 {
 		return ""
 	}
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = alphabet[cryptoIntN(len(alphabet))]
+	// One rand.Read per batch instead of one syscall-level draw per character.
+	// Bytes above the largest multiple of len(alphabet) are rejected so the
+	// modulo stays uniform (62*4 = 248).
+	out := make([]byte, 0, length)
+	buf := make([]byte, length+length/2+16)
+	for len(out) < length {
+		if _, err := rand.Read(buf); err != nil {
+			panic("rands: crypto/rand unavailable: " + err.Error())
+		}
+		for _, b := range buf {
+			if b >= 248 {
+				continue
+			}
+			out = append(out, alphabet[int(b)%62])
+			if len(out) == length {
+				break
+			}
+		}
 	}
-	return string(b)
+	return string(out)
 }
 
 // Hex generates a cryptographically secure random lowercase hex string with

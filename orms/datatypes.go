@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 // List is a generic slice type that supports JSON serialization/deserialization
@@ -23,6 +26,12 @@ func (s List[T]) Value() (driver.Value, error) {
 	return JSONValue(s)
 }
 
+// GormDBDataType reports the column type for List on the active driver, so
+// AutoMigrate emits a JSON-capable column without a hand-written `type:` tag.
+func (List[T]) GormDBDataType(db *gorm.DB, field *schema.Field) string {
+	return jsonDBDataType(db)
+}
+
 // Dict is a generic map type that supports Dict serialization/deserialization
 // for database persistence.
 type Dict[T any] map[string]T // @name Dict
@@ -37,6 +46,29 @@ func (d *Dict[T]) Scan(value any) error {
 // a JSON-encoded format for database storage.
 func (d Dict[T]) Value() (driver.Value, error) {
 	return JSONValue(d)
+}
+
+// GormDBDataType reports the column type for Dict on the active driver, so
+// AutoMigrate emits a JSON-capable column without a hand-written `type:` tag.
+func (Dict[T]) GormDBDataType(db *gorm.DB, field *schema.Field) string {
+	return jsonDBDataType(db)
+}
+
+// jsonDBDataType maps a dialect to its JSON storage type. Drivers without a
+// JSON type fall back to text, which still stores the marshalled value.
+func jsonDBDataType(db *gorm.DB) string {
+	switch db.Dialector.Name() {
+	case "mysql", "mariadb":
+		return "json"
+	case "postgres":
+		return "jsonb"
+	case "sqlserver":
+		return "nvarchar(max)"
+	case "clickhouse":
+		return "String"
+	default: // sqlite
+		return "text"
+	}
 }
 
 func JSONScan(d any, value any) error {

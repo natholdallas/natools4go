@@ -60,11 +60,15 @@ func TestErrorHandlerGeneric(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("status = %d, want 400", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", resp.StatusCode)
 	}
-	if body := readBody(resp); !strings.Contains(body, "boom") {
-		t.Errorf("body = %s, want boom", body)
+	body := readBody(resp)
+	if !strings.Contains(body, "internal server error") {
+		t.Errorf("body = %s, want internal server error", body)
+	}
+	if strings.Contains(body, "boom") {
+		t.Errorf("body leaked internal error text: %s", body)
 	}
 }
 
@@ -193,4 +197,23 @@ func readBody(resp *http.Response) string {
 	}
 	defer resp.Body.Close()
 	return strings.TrimSpace(string(data))
+}
+
+// TestGetAuthorizationRejectsForeignScheme guards against handing a different
+// credential type to a token verifier: an "Authorization: Basic ..." header must
+// not be returned as if it were the bearer token.
+func TestGetAuthorizationRejectsForeignScheme(t *testing.T) {
+	app := fiber.New()
+	app.Get("/", func(c fiber.Ctx) error {
+		return c.SendString(GetAuthorization(c, "Token "))
+	})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer x")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	if body := readBody(resp); body != "" {
+		t.Errorf("authorization = %q, want empty for mismatched scheme", body)
+	}
 }

@@ -7,32 +7,46 @@ import (
 	jwtware "github.com/gofiber/contrib/v3/jwt"
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/natholdallas/natools4go/narder"
 )
 
 // JWTware initializes a Gofiber middleware to protect routes using JWT.
-// It uses the standard HS256 signing method and RegisteredClaims.
+// It uses the standard HS256 signing method and RegisteredClaims. An empty
+// secret key is a configuration bug that would let anyone forge a token, so it
+// panics at construction time instead of silently accepting garbage.
 func JWTware(secretKey string) fiber.Handler {
+	if secretKey == "" {
+		panic("fext: JWTware: secret key must not be empty")
+	}
 	return jwtware.New(jwtware.Config{
-		SigningKey:   jwtware.SigningKey{Key: []byte(secretKey)},
+		SigningKey:   jwtware.SigningKey{Key: []byte(secretKey), JWTAlg: jwtware.HS256},
 		ErrorHandler: JWTErrorHandler,
 		Claims:       &jwt.RegisteredClaims{},
 	})
 }
 
 // JWTErrorHandler is a specialized error handler for JWT middleware.
-// It captures authentication errors and returns a 401 Unauthorized status.
+// It captures authentication errors and returns a 401 Unauthorized status
+// without echoing the parser's internal error text to the client.
 func JWTErrorHandler(c fiber.Ctx, err error) error {
-	return fiber.NewError(fiber.StatusUnauthorized, err.Error())
+	narder.Warn(err)
+	return fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
 }
 
 // GenToken generates a signed JWT string for a specific subject ID.
 // The default expiration (if not provided) is 720 hours (30 days).
 func GenToken(ID string, secretKey string, endtime ...time.Duration) (string, error) {
-	claims := jwt.RegisteredClaims{ID: ID}
+	now := time.Now()
+	ttl := 720 * time.Hour
 	if len(endtime) > 0 {
-		claims.ExpiresAt = &jwt.NumericDate{Time: time.Now().Add(endtime[0])}
-	} else {
-		claims.ExpiresAt = &jwt.NumericDate{Time: time.Now().Add(time.Hour * 720)}
+		ttl = endtime[0]
+	}
+	claims := jwt.RegisteredClaims{
+		ID:        ID, // kept for callers that read Token.ID
+		Subject:   ID,
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secretKey))
@@ -47,7 +61,10 @@ func ParseToken(token, secretKey string) (claims jwt.RegisteredClaims, err error
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return []byte(secretKey), nil
-	})
+	},
+		jwt.WithValidMethods([]string{"HS256", "HS384", "HS512"}),
+		jwt.WithExpirationRequired(),
+	)
 	return claims, err
 }
 

@@ -3,7 +3,6 @@ package orms
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"gorm.io/gorm"
 )
@@ -131,15 +130,12 @@ func UpdatesByID[T any](tx *gorm.DB, id, values any) error {
 
 // Delete performs a batch delete for the given conditions.
 //
-// A bare string condition is passed straight to GORM, which treats a string
-// containing a space or "?" as a raw WHERE clause. That turns an unvalidated
-// route parameter into SQL injection:
-//
-//	orms.Delete[User](tx, c.Params("id"))   // "1 or 1=1" deletes every row
-//
-// To keep that footgun out of calling code, Delete rejects such conditions and
-// points at the typed helpers. Use DeleteByID for primary-key deletes and
-// DeleteWhere for anything else.
+// GORM treats a bare string condition that is not a plain number as a raw SQL
+// fragment, so an unvalidated route parameter such as "1 or 1=1" or "true"
+// deletes every row. To keep that footgun out of calling code, Delete only
+// accepts digit-only strings (GORM's primary-key shorthand) and rejects
+// everything else with a pointer at the typed helpers. Use DeleteByID for
+// primary-key deletes and DeleteWhere for anything else.
 func Delete[T any](tx *gorm.DB, conds ...any) error {
 	if err := checkDeleteConds(conds); err != nil {
 		return err
@@ -147,22 +143,40 @@ func Delete[T any](tx *gorm.DB, conds ...any) error {
 	return tx.Delete(new(T), conds...).Error
 }
 
-// checkDeleteConds rejects raw SQL-looking strings so an unvalidated request
-// parameter cannot widen a delete into a table-wide one.
+// checkDeleteConds rejects string conditions that GORM would compile into a raw
+// WHERE clause. Only an optionally negative integer is allowed, because that is
+// the one string form GORM resolves to a primary-key lookup.
 func checkDeleteConds(conds []any) error {
 	for _, cond := range conds {
 		s, ok := cond.(string)
 		if !ok {
 			continue
 		}
-		if s == "" {
-			return fmt.Errorf("orms: refusing empty string condition (use DeleteByID or DeleteWhere)")
-		}
-		if strings.ContainsAny(s, " ?=<>'\"()") {
-			return fmt.Errorf("orms: refusing raw string condition %q (use DeleteWhere for explicit WHERE clauses)", s)
+		if !isIntegerLiteral(s) {
+			return fmt.Errorf("orms: refusing string condition %q (use DeleteByID or DeleteWhere)", s)
 		}
 	}
 	return nil
+}
+
+// isIntegerLiteral reports whether s matches ^-?[0-9]+$ without allocating.
+func isIntegerLiteral(s string) bool {
+	if s == "" {
+		return false
+	}
+	i := 0
+	if s[0] == '-' {
+		i = 1
+	}
+	if i == len(s) {
+		return false
+	}
+	for ; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // DeleteByID deletes the single record whose primary key equals id and reports

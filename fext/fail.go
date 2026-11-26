@@ -1,6 +1,7 @@
 package fext
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"github.com/gofiber/fiber/v3"
@@ -58,6 +59,14 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 		resp.Code = e.Code
 		resp.Message = e.Message
 
+		// A *Fail with neither a status nor a message carries no developer
+		// intent, so treat it as an internal failure rather than echoing an
+		// empty body with the default 400.
+		if e.Status == 0 && e.Message == "" {
+			status = fiber.StatusInternalServerError
+			resp.Message = "internal server error"
+		}
+
 		// Handle system error visibility and logging
 		if e.System != nil {
 			if narder.IsDebug() {
@@ -77,10 +86,21 @@ func ErrorHandler(c fiber.Ctx, err error) error {
 		if e.Code != 0 {
 			status = e.Code
 		}
-		resp.Message = e.Message
+		// Messages attached to 5xx errors are usually internal detail (driver
+		// errors, upstream failures); only client errors are safe to echo.
+		if e.Code >= 500 {
+			resp.Message = "internal server error"
+		} else {
+			resp.Message = e.Message
+		}
 
 	default:
-		resp.Message = err.Error()
+		// Unknown errors must never be serialized into the response body: they
+		// routinely contain DSNs, SQL and stack detail. Log and return a fixed
+		// message instead.
+		status = fiber.StatusInternalServerError
+		resp.Message = "internal server error"
+		narder.Error(fmt.Sprintf("%s %s: %v", c.Method(), c.Path(), err))
 	}
 	return c.Status(status).JSON(resp)
 }

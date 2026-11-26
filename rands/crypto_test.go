@@ -6,7 +6,7 @@ import (
 )
 
 func TestCryptoLengthAndAlphabet(t *testing.T) {
-	for _, n := range []int{0, 1, 16, 32, 64} {
+	for _, n := range []int{0, 1, 16, 32, 64, 1024} {
 		got := Crypto(n)
 		if len(got) != n {
 			t.Errorf("Crypto(%d) length = %d, want %d", n, len(got), n)

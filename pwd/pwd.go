@@ -70,6 +70,12 @@ func Verify(plain, encoded string) bool {
 	if len(parts) != 6 {
 		return false
 	}
+	// Only argon2 version 19 (0x13) is understood by this implementation. The
+	// version sits inside the encoded string, so a crafted hash could otherwise
+	// claim an older layout while being decoded with v19 parameters.
+	if parts[2] != "v=19" {
+		return false
+	}
 	var memory, timeCost, parallelism int
 	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &timeCost, &parallelism); err != nil {
 		return false

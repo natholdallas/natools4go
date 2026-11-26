@@ -188,6 +188,9 @@ form use `va.Errors`, which returns `[]FieldError{{Field, Tag, Param}}`.
 - **DSN builder**: `orms.DSN(driver, name, user, pass, host, port)` and
   `orms.Dialector(driver, dsn, name, query, prepare...)` cover MySQL / PostgreSQL /
   SQLite / SQL Server / ClickHouse. `prepare=true` auto-creates the database.
+  MySQL DSNs include `parseTime=true&loc=Local` so `time.Time` fields scan; SQL
+  Server case sensitivity is a database-level setting (`AutoMigrate` no longer
+  emits an invalid table-level `COLLATE`).
 - **Models**: `IDModel[T]`, `Model[T]`, `SoftModel[T]` — ready-made generic base models
   with swagger-compatible tags.
 - **Query builder**: `orms.Q[T]` (no model), `orms.QE[T]` (model = T),
@@ -203,8 +206,13 @@ form use `va.Errors`, which returns `[]FieldError{{Field, Tag, Param}}`.
   injection). Use `DeleteByID[T](tx, id)` or `DeleteWhere[T](tx, query, args...)`.
 - **Schema reconciliation**: `SyncTablesSoft` adds missing columns and keeps
   database-only ones (moved last, sorted); `SyncTablesHard` also drops columns that
-  no longer exist in the struct. Both process **every** model passed in. Prefer
-  `AutoMigrate` for routine add-only migrations.
+  no longer exist in the struct. Column definitions stay as the database created
+  them — only order, added and dropped columns change. MySQL/MariaDB reorder with a
+  single `ALTER TABLE`; SQLite and ClickHouse rebuild from their own `CREATE TABLE`
+  text; PostgreSQL and SQL Server rebuild inside a transaction and restore indexes,
+  constraints, foreign keys and triggers. When the order already matches, **no DDL
+  runs at all**. Both process every model passed in; prefer `AutoMigrate` for
+  routine add-only migrations.
 - **Reset**: `Reset(db, driver, dsn)` drops and recreates the whole database;
   `AutoCreate`/`AutoCreateE` create it when missing. Both accept GORM driver names
   and translate them to the matching `database/sql` driver. SQLite needs neither —
@@ -222,13 +230,13 @@ form use `va.Errors`, which returns `[]FieldError{{Field, Tag, Param}}`.
 - **Errors**: `fext.Fail{Status, Code, Message, System}` — returns a clean JSON body.
   `ErrorHandler` maps `*Fail`, `*fiber.Error`, and generic errors to proper status
   codes; `System` is surfaced only in debug mode (`narder.SetDebugMode(true)`) and forwarded
-  to `SetErrorFunc`.
+  to `SetErrorHandler`.
 - **JWT**: `JWTware` (HS256 middleware), `GenToken` / `ParseToken` (algorithm-confusion
   safe — only HMAC accepted), `JWT` struct for grouped secret management,
   `JWT.Claims(c)` to read the current user (nil when unauthenticated).
 - **Utils**: `Cache(seconds)`, `Status`/`JSON`/`SendString`, `GetAuthorization`,
   and `Listen` (logs startup failures via `narder`, forwards errors to
-  `SetErrorFunc`, or panics on startup failure).
+  `SetErrorHandler`, or panics on startup failure).
 
 ### `vipers` — typed config
 

@@ -1,13 +1,18 @@
 package orms
 
 import (
+	"context"
 	"io"
+	"net/url"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -273,7 +278,7 @@ func TestDSN(t *testing.T) {
 		driver string
 		want   string
 	}{
-		{"mysql", "u:p@tcp(h:1)/"},
+		{"mysql", "u:p@tcp(h:1)/?parseTime=true&loc=Local"},
 		{"postgres", "host=h user=u password=p port=1"},
 		{"sqlite", "db"},
 		{"sqlserver", "sqlserver://u:p@h:1"},
@@ -536,7 +541,7 @@ func TestDeleteRejectsRawString(t *testing.T) {
 		}
 	}
 
-	for _, cond := range []string{"1 or 1=1", "1=1", "", "id = 1"} {
+	for _, cond := range []string{"1 or 1=1", "1=1", "", "id = 1", "true", "NULL", "now()", "id"} {
 		if err := Delete[syncUser](db, cond); err == nil {
 			t.Errorf("Delete(%q) accepted a raw condition", cond)
 		}
@@ -545,15 +550,300 @@ func TestDeleteRejectsRawString(t *testing.T) {
 		t.Fatalf("rows after rejected deletes = %d, want 2", n)
 	}
 
+	// A digit-only string is GORM's primary-key shorthand and stays allowed.
+	if err := Delete[syncUser](db, "1"); err != nil {
+		t.Fatalf("Delete(\"1\"): %v", err)
+	}
+	if n := Count[syncUser](db); n != 1 {
+		t.Errorf("rows after Delete(\"1\") = %d, want 1", n)
+	}
+	if got := IFirst[syncUser](db, 2); got.Name != "bob" {
+		t.Errorf("wrong row deleted: %+v", got)
+	}
+
 	// The typed helper deletes exactly one row.
-	affected, err := DeleteByID[syncUser](db, 1)
+	affected, err := DeleteByID[syncUser](db, 2)
 	if err != nil {
 		t.Fatalf("DeleteByID: %v", err)
 	}
 	if affected != 1 {
 		t.Errorf("DeleteByID affected = %d, want 1", affected)
 	}
-	if n := Count[syncUser](db); n != 1 {
-		t.Errorf("rows after DeleteByID = %d, want 1", n)
+	if n := Count[syncUser](db); n != 0 {
+		t.Errorf("rows after DeleteByID = %d, want 0", n)
+	}
+}
+
+// TestPaginateWithoutModel guards against calling Paginate on a raw *gorm.DB:
+// without a model GORM parsed *int64 as the model and emitted an untabled
+// "SELECT count(*)", failing the whole call.
+func TestPaginateWithoutModel(t *testing.T) {
+	db := newTestDB(t)
+	_ = db.AutoMigrate(&user{})
+	seedUsers(t, db, []string{"a", "b", "c", "d", "e"})
+
+	page, out := Paginate[user](db, Pagination{Page: 1, Size: 2})
+	if out.Error != nil {
+		t.Fatalf("Paginate: %v", out.Error)
+	}
+	if page.Total != 5 {
+		t.Errorf("Total = %d, want 5", page.Total)
+	}
+	if len(page.Content) != 2 {
+		t.Errorf("Content len = %d, want 2", len(page.Content))
+	}
+}
+
+// TestJSONColumnTypeSQLite proves List/Dict declare their own column type, so
+// AutoMigrate works on every dialect without a hand-written `type:` tag.
+func TestJSONColumnTypeSQLite(t *testing.T) {
+	db := newTestDB(t)
+	if err := db.AutoMigrate(&user{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	types, err := db.Migrator().ColumnTypes(&user{})
+	if err != nil {
+		t.Fatalf("column types: %v", err)
+	}
+	want := map[string]bool{"tags": false, "meta": false}
+	for _, col := range types {
+		if _, ok := want[col.Name()]; !ok {
+			continue
+		}
+		if got := col.DatabaseTypeName(); got != "text" {
+			t.Errorf("column %s type = %q, want text", col.Name(), got)
+		}
+		want[col.Name()] = true
+	}
+	for name, seen := range want {
+		if !seen {
+			t.Errorf("column %s not found", name)
+		}
+	}
+}
+
+func TestDialectorMySQLKeepsParams(t *testing.T) {
+	d, err := Dialector("mysql", "u:p@tcp(h:1)/?parseTime=true", "app", "charset=utf8mb4")
+	if err != nil {
+		t.Fatalf("Dialector: %v", err)
+	}
+	dsn := d.(*mysql.Dialector).DSN
+	// The database must be injected between the path slash and the query, not
+	// appended after "?parseTime=...".
+	if !strings.Contains(dsn, "/app?") {
+		t.Errorf("dsn = %q, want database app before the query", dsn)
+	}
+	if !strings.Contains(dsn, "parseTime=true") || !strings.Contains(dsn, "charset=utf8mb4") {
+		t.Errorf("dsn = %q, lost parameters", dsn)
+	}
+}
+
+func TestDialectorSQLServerMergesQuery(t *testing.T) {
+	d, err := Dialector("sqlserver", "sqlserver://u:p@h:1?encrypt=disable", "app", "TrustServerCertificate=true")
+	if err != nil {
+		t.Fatalf("Dialector: %v", err)
+	}
+	raw := d.(*sqlserver.Dialector).DSN
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatalf("url.Parse(%q): %v", raw, err)
+	}
+	q := u.Query()
+	if got := q["database"]; len(got) != 1 || got[0] != "app" {
+		t.Errorf("database = %v, want exactly [app]", got)
+	}
+	if q.Get("encrypt") != "disable" || q.Get("TrustServerCertificate") != "true" {
+		t.Errorf("merged query = %v, want encrypt and TrustServerCertificate", q)
+	}
+}
+
+func TestMaintenanceDSN(t *testing.T) {
+	got, err := maintenanceDSN("postgres", "postgres://u:p@h:1/app")
+	if err != nil {
+		t.Fatalf("maintenanceDSN(url): %v", err)
+	}
+	if got != "postgres://u:p@h:1/postgres" {
+		t.Errorf("maintenanceDSN(url) = %q", got)
+	}
+
+	got, err = maintenanceDSN("postgres", "host=h user=u dbname=app port=1")
+	if err != nil {
+		t.Fatalf("maintenanceDSN(kv): %v", err)
+	}
+	if strings.Contains(got, "dbname=app") || !strings.Contains(got, "dbname=postgres") {
+		t.Errorf("maintenanceDSN(kv) = %q, want dbname=postgres only", got)
+	}
+
+	got, err = maintenanceDSN("sqlserver", "sqlserver://u:p@h:1?database=app")
+	if err != nil {
+		t.Fatalf("maintenanceDSN(sqlserver): %v", err)
+	}
+	if !strings.Contains(got, "database=master") {
+		t.Errorf("maintenanceDSN(sqlserver) = %q, want database=master", got)
+	}
+}
+
+type syncParent struct {
+	ID   int `gorm:"primaryKey"`
+	Name string
+	Note string
+}
+
+func (syncParent) TableName() string { return "parent" }
+
+// sqlRecorder records every statement GORM runs so a no-op sync can be proven
+// to emit no DDL.
+type sqlRecorder struct {
+	logger.Interface
+	sqls []string
+}
+
+func (r *sqlRecorder) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+	sql, _ := fc()
+	r.sqls = append(r.sqls, sql)
+}
+
+func (r *sqlRecorder) ddlCount() int {
+	n := 0
+	for _, sql := range r.sqls {
+		upper := strings.ToUpper(strings.TrimSpace(sql))
+		if strings.HasPrefix(upper, "CREATE") || strings.HasPrefix(upper, "ALTER") ||
+			strings.HasPrefix(upper, "DROP") || strings.HasPrefix(upper, "INSERT") {
+			n++
+		}
+	}
+	return n
+}
+
+// TestSyncTablesSoftPreservesIndexesAndForeignKeys is the core SQLite
+// regression: reordering columns used to rebuild via rename, which broke
+// indexes and rewrote other tables' foreign keys, and every call rebuilt the
+// table even when the order already matched.
+func TestSyncTablesSoftPreservesIndexesAndForeignKeys(t *testing.T) {
+	db := newTestDB(t)
+	for _, stmt := range []string{
+		`CREATE TABLE parent (id INTEGER PRIMARY KEY, legacy TEXT, name TEXT)`,
+		`CREATE TABLE child (id INTEGER PRIMARY KEY, pid INTEGER REFERENCES parent(id))`,
+		`CREATE INDEX idx_parent_name ON parent(name)`,
+	} {
+		if err := db.Exec(stmt).Error; err != nil {
+			t.Fatalf("setup %q: %v", stmt, err)
+		}
+	}
+	if err := db.Exec(`INSERT INTO parent (id, legacy, name) VALUES (1, 'l1', 'p1'), (2, 'l2', 'p2')`).Error; err != nil {
+		t.Fatalf("seed parent: %v", err)
+	}
+	if err := db.Exec(`INSERT INTO child (id, pid) VALUES (10, 1)`).Error; err != nil {
+		t.Fatalf("seed child: %v", err)
+	}
+
+	if err := SyncTablesSoft(db, &syncParent{}); err != nil {
+		t.Fatalf("SyncTablesSoft: %v", err)
+	}
+
+	want := []string{"id", "name", "note", "legacy"}
+	if cols := tableColumns(t, db, "parent"); !slices.Equal(cols, want) {
+		t.Fatalf("columns = %v, want %v", cols, want)
+	}
+
+	var childSQL string
+	if err := db.Raw("SELECT sql FROM sqlite_master WHERE type='table' AND name='child'").Row().Scan(&childSQL); err != nil {
+		t.Fatalf("read child ddl: %v", err)
+	}
+	if !strings.Contains(childSQL, "parent") || strings.Contains(childSQL, "__sync_new") {
+		t.Errorf("child foreign key was rewritten: %s", childSQL)
+	}
+
+	var idxCount int64
+	if err := db.Raw("SELECT count(*) FROM sqlite_master WHERE type='index' AND name='idx_parent_name'").Scan(&idxCount).Error; err != nil {
+		t.Fatalf("read index: %v", err)
+	}
+	if idxCount != 1 {
+		t.Errorf("idx_parent_name missing after rebuild")
+	}
+
+	rows, err := db.Raw("PRAGMA foreign_key_check").Rows()
+	if err != nil {
+		t.Fatalf("foreign_key_check: %v", err)
+	}
+	if rows.Next() {
+		rows.Close()
+		t.Error("foreign_key_check reported a violation")
+	} else {
+		rows.Close()
+	}
+
+	var name, legacy string
+	if err := db.Raw("SELECT name, legacy FROM parent WHERE id = 2").Row().Scan(&name, &legacy); err != nil {
+		t.Fatalf("read row: %v", err)
+	}
+	if name != "p2" || legacy != "l2" {
+		t.Errorf("data lost after rebuild: name=%q legacy=%q", name, legacy)
+	}
+
+	// A second sync with the same schema must not touch the table at all.
+	rec := &sqlRecorder{Interface: logger.Discard}
+	db.Logger = rec
+	if err := SyncTablesSoft(db, &syncParent{}); err != nil {
+		t.Fatalf("second SyncTablesSoft: %v", err)
+	}
+	if n := rec.ddlCount(); n != 0 {
+		t.Errorf("second sync emitted %d DDL statements: %v", n, rec.sqls)
+	}
+}
+
+// TestSyncTablesSoftCleansStaleTempTable proves a leftover temporary table from
+// an interrupted run cannot poison the next one or lose the original data.
+func TestSyncTablesSoftCleansStaleTempTable(t *testing.T) {
+	db := newTestDB(t)
+	// "junk" before "name" forces a real reorder, so the rebuild path runs.
+	if err := db.Exec(`CREATE TABLE parent (id INTEGER PRIMARY KEY, junk TEXT, name TEXT)`).Error; err != nil {
+		t.Fatalf("setup parent: %v", err)
+	}
+	if err := db.Exec(`INSERT INTO parent (id, junk, name) VALUES (1, 'j', 'keep')`).Error; err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	if err := db.Exec(`CREATE TABLE parent__sync_new (id INTEGER PRIMARY KEY, garbage TEXT)`).Error; err != nil {
+		t.Fatalf("stale temp: %v", err)
+	}
+	if err := db.Exec(`INSERT INTO parent__sync_new (id, garbage) VALUES (99, 'junk')`).Error; err != nil {
+		t.Fatalf("stale row: %v", err)
+	}
+
+	if err := SyncTablesSoft(db, &syncParent{}); err != nil {
+		t.Fatalf("SyncTablesSoft: %v", err)
+	}
+
+	var name string
+	if err := db.Raw("SELECT name FROM parent WHERE id = 1").Row().Scan(&name); err != nil {
+		t.Fatalf("read parent: %v", err)
+	}
+	if name != "keep" {
+		t.Errorf("parent data damaged: %q", name)
+	}
+	if db.Migrator().HasTable("parent__sync_new") {
+		t.Error("temporary table survived the sync")
+	}
+}
+
+// TestResetTables drops and recreates the table on one connection, wiping data
+// and restoring the struct column order.
+func TestResetTables(t *testing.T) {
+	db := newTestDB(t)
+	if err := db.AutoMigrate(&syncUser{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := db.Create(&syncUser{Name: "alice", Age: 1}).Error; err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	if err := ResetTables(db, &syncUser{}); err != nil {
+		t.Fatalf("ResetTables: %v", err)
+	}
+	if n := Count[syncUser](db); n != 0 {
+		t.Errorf("rows after reset = %d, want 0", n)
+	}
+	want := []string{"id", "name", "age"}
+	if cols := tableColumns(t, db, "sync_users"); !slices.Equal(cols, want) {
+		t.Errorf("columns = %v, want %v", cols, want)
 	}
 }

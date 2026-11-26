@@ -1,0 +1,60 @@
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: natools
+      MYSQL_DATABASE: natools_test
+      MYSQL_USER: natools
+      MYSQL_PASSWORD: natools
+    ports:
+      - "13306:3306"  # 3306 is taken by a host MySQL on this machine
+    volumes:
+      - ./mysql-init.sql:/docker-entrypoint-initdb.d/10-grant.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-unatools", "-pnatools"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: natools
+      POSTGRES_PASSWORD: natools
+      POSTGRES_DB: natools_test
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "natools"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Natools!Passw0rd"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Natools!Passw0rd' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24
+    environment:
+      CLICKHOUSE_USER: natools
+      CLICKHOUSE_PASSWORD: natools
+      CLICKHOUSE_DB: natools_test
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "natools", "--password", "natools", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30

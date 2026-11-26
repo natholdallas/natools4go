@@ -25,12 +25,21 @@ var (
 	events   []EventHandler = []EventHandler{}
 )
 
-// Watch sets up configuration watching and links it to the internal event dispatcher.
+// watchOnce guards the global viper watcher setup: viper.OnConfigChange is a
+// single-slot assignment and WatchConfig starts a filesystem watcher, so a
+// second Watch call used to duplicate handlers and overwrite the callback.
+var watchOnce sync.Once
+
+// Watch sets up configuration watching and links it to the internal event
+// dispatcher. It is idempotent: only the first call registers handlers and
+// installs the watcher; use RegisterUpdateHandler to add handlers later.
 // Call this after setting up your config paths/files.
 func Watch(es ...EventHandler) {
-	RegisterUpdateHandler(es...)
-	viper.OnConfigChange(Reload)
-	viper.WatchConfig()
+	watchOnce.Do(func() {
+		RegisterUpdateHandler(es...)
+		viper.OnConfigChange(Reload)
+		viper.WatchConfig()
+	})
 }
 
 func Config(name, path string, confType ...string) error {

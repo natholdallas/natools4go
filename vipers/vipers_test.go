@@ -85,3 +85,25 @@ func TestRegisterUpdateHandlerSkipsNil(t *testing.T) {
 	Reload(fsnotify.Event{})
 	// No panic is the assertion.
 }
+
+// TestWatchIsIdempotent guards the duplicate-registration regression: a second
+// Watch call must not register the handler again or overwrite viper's callback.
+func TestWatchIsIdempotent(t *testing.T) {
+	setup(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "app.toml"), []byte("x = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Config("app", dir, "toml"); err != nil {
+		t.Fatalf("Config: %v", err)
+	}
+
+	var calls atomic.Int32
+	h := func(fsnotify.Event) { calls.Add(1) }
+	Watch(h)
+	Watch(h)
+	Reload(fsnotify.Event{Name: "app.toml"})
+	if got := calls.Load(); got != 1 {
+		t.Errorf("handler called %d times after two Watch calls, want 1", got)
+	}
+}

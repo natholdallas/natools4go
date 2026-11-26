@@ -161,7 +161,12 @@ func PaginateMapping[T, E any](page Page[T], conv func(v T) E) Page[E] {
 }
 
 // Paginate executes a count query and a find query to return a populated Page container.
+// When tx has no model set, T is used, so Paginate can be called directly on a
+// raw *gorm.DB (Query[T].Paginate already applies the same fallback).
 func Paginate[T any](tx *gorm.DB, pagination Pagination) (Page[T], *gorm.DB) {
+	if tx.Statement != nil && tx.Statement.Model == nil {
+		tx = tx.Model(new(T))
+	}
 	total := int64(0)
 	content := []T{}
 	tx = tx.Count(&total).Scopes(pagination.Scope).Find(&content)

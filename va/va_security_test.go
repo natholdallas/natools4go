@@ -73,3 +73,27 @@ func TestErrorsNilWhenValid(t *testing.T) {
 		t.Errorf("expected no field errors, got %+v", errs)
 	}
 }
+
+// TestStructRedactionFieldNames pins the field-name heuristic in both
+// directions: "Passport" must keep its value (the old regex matched its
+// "pass" prefix), while "Pwd" must be redacted (the old regex missed it).
+func TestStructRedactionFieldNames(t *testing.T) {
+	type fields struct {
+		Passport string `validate:"min=10"`
+		Pwd      string `validate:"min=10"`
+	}
+	err := Struct(fields{Passport: "ab", Pwd: "cd"})
+	if err == nil {
+		t.Fatal("expected validation errors")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "[Passport:ab]") {
+		t.Errorf("Passport value should be preserved: %s", msg)
+	}
+	if strings.Contains(msg, "cd") {
+		t.Errorf("Pwd value leaked into validation error: %s", msg)
+	}
+	if !strings.Contains(msg, "[Pwd:***]") {
+		t.Errorf("Pwd value should be redacted: %s", msg)
+	}
+}

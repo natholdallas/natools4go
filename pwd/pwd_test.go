@@ -76,3 +76,16 @@ func TestVerifyAcceptsOtherTunedParameters(t *testing.T) {
 		t.Fatal("Verify accepted a wrong password for the tuned hash")
 	}
 }
+
+// TestVerifyRejectsOtherArgonVersion ensures a hash that claims an unsupported
+// argon2 version is rejected cleanly instead of being decoded with v19 rules.
+func TestVerifyRejectsOtherArgonVersion(t *testing.T) {
+	h, err := Hash("123456")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := "$argon2id$v=16$" + h[len("$argon2id$v=19$"):]
+	if Verify("123456", old) {
+		t.Fatal("Verify accepted an argon2 v=16 hash")
+	}
+}
